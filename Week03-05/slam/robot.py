@@ -76,6 +76,14 @@ class Robot:
         dt = drive_meas.dt
         th = self.state[2]
         
+        if ang_vel == 0:
+            DFx[0,2] = -np.sin(th)*lin_vel*dt
+            DFx[1,2] = np.cos(th)*lin_vel*dt
+        else:
+            R= lin_vel/ang_vel
+            DFx[0,2] =  R*(-np.cos(th)+np.cos(th+ang_vel*dt))
+            DFx[1,2] =  R*(-np.sin(th)+np.sin(th+ang_vel*dt))
+
         # TODO: add your codes here to compute DFx using lin_vel, ang_vel, dt, and th
 
         return DFx
