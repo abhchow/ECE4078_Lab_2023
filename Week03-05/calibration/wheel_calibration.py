@@ -7,7 +7,7 @@ from pibot import PenguinPi
 
 
 
-def calibrateWheelRadius():
+def calibrateWheelRadius(): #radius=R
     # Compute the robot scale parameter using a range of wheel velocities.
     # For each wheel velocity, the robot scale parameter can be computed
     # by comparing the time and distance driven to the input wheel velocities.
@@ -42,14 +42,17 @@ def calibrateWheelRadius():
     # Once finished driving, compute the scale parameter by averaging
     num = len(wheel_velocities_range)
     scale = 0
+    temp=[]
     for delta_time, wheel_vel in zip(delta_times, wheel_velocities_range):
-        pass # TODO: replace with your code to compute the scale parameter using wheel_vel and delta_time
+        #replace with your code to compute the scale parameter using wheel_vel and delta_time
+        temp.append(1/(delta_time*wheel_vel)) #m/ticks
+    scale=np.mean(temp)
     print("The scale parameter is estimated as {:.6f} m/ticks.".format(scale))
 
     return scale
 
 
-def calibrateBaseline(scale):
+def calibrateBaseline(scale): #baseline=L
     # Compute the robot basline parameter using a range of wheel velocities.
     # For each wheel velocity, the robot baseline parameter can be computed by
     # comparing the time elapsed and rotation completed to the input wheel
@@ -85,8 +88,11 @@ def calibrateBaseline(scale):
     # Once finished driving, compute the basline parameter by averaging
     num = len(wheel_velocities_range)
     baseline = 0
+    temp=[]
     for delta_time, wheel_vel in zip(delta_times, wheel_velocities_range):
-        pass # TODO: replace with your code to compute the baseline parameter using scale, wheel_vel, and delta_time
+        #replace with your code to compute the baseline parameter using scale, wheel_vel, and delta_time
+        temp.append(wheel_vel*delta_time*scale/np.pi) #m pi wheel vel time
+    baseline=np.mean(temp)
     print("The baseline parameter is estimated as {:.6f} m.".format(baseline))
 
     return baseline

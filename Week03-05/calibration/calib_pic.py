@@ -21,31 +21,39 @@ class calibration:
         if self.command['image']:
             for i in range(images_to_collect):
                 image = self.pibot.get_image()
-                filename = "images/calib_{}.png".format(i)
+                filename = "calib_{}.png".format(i)
                 image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
                 cv2.imwrite(filename, image)
             self.finish = True
 
+    # keyboard teleoperation        
     def update_keyboard(self):
         for event in pygame.event.get():
-            ########### replace with your M1 codes ###########
+            ############### add your codes below ###############
             # drive forward
             if event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
-                pass # TODO: replace with your M1 code to make the robot drive forward
+                # TODO: replace with your code to make the robot drive forward
+                self.command['motion'] = [1, 0] #linear
             # drive backward
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN:
-                pass # TODO: replace with your M1 code to make the robot drive backward
+                pass # TODO: replace with your code to make the robot drive backward
+                self.command['motion'] = [-1, 0] #-linear
             # turn left
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT:
-                pass # TODO: replace with your M1 code to make the robot turn left
+                pass # TODO: replace with your code to make the robot turn left
+                self.command['motion'] = [0, 1] #rot
             # drive right
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
-                pass # TODO: replace with your M1 code to make the robot turn right
+                pass # TODO: replace with your code to make the robot turn right
+                self.command['motion'] = [0, -1] #-rot
             ####################################################
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+            # stop
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
                 self.command['motion'] = [0, 0]
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
+            # save image
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
                 self.command['image'] = True
+
 
     def control(self):
         motion_command = self.command['motion']
