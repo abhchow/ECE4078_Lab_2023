@@ -75,7 +75,7 @@ class Robot:
 
         dt = drive_meas.dt
         th = self.state[2]
-        
+
         if ang_vel == 0:
             DFx[0,2] = -np.sin(th)*lin_vel*dt
             DFx[1,2] = np.cos(th)*lin_vel*dt
@@ -120,6 +120,10 @@ class Robot:
         return DH
     
     def covariance_drive(self, drive_meas):
+        # Sigma_Q is the uncertainty in the prediction of your position
+        # Sigma_R is the uncertainty in your sensor
+        # Sigma_K is the covariance matrix of the states
+
         # Derivative of lin_vel, ang_vel w.r.t. left_speed, right_speed
         Jac1 = np.array([[self.wheels_scale/2, self.wheels_scale/2],
                 [-self.wheels_scale/self.wheels_width, self.wheels_scale/self.wheels_width]])
@@ -130,9 +134,14 @@ class Robot:
         th2 = th + dt*ang_vel
 
         # Derivative of x,y,theta w.r.t. lin_vel, ang_vel
-        Jac2 = np.zeros((3,2))
-        
         # TODO: add your codes here to compute Jac2 using lin_vel, ang_vel, dt, th, and th2
+        Jac2 = np.zeros((3,2))
+        Jac2[0,0] = 1/ang_vel * (-np.sin(th)+np.sin(th2))
+        Jac2[0,1] = (-lin_vel/ang_vel**2) * (-np.sin(th)+np.sin(th2)) + lin_vel/ang_vel*dt*np.cos(th2)
+        Jac2[1,0] = 1/ang_vel * (np.cos(th)-np.cos(th2))
+        Jac2[1,1] = (-lin_vel/ang_vel**2) * (np.cos(th)-np.cos(th2)) + lin_vel/ang_vel*dt*np.sin(th2)
+        # Jac2[2,0] = 0
+        Jac2[2,1] = dt
 
         # Derivative of x,y,theta w.r.t. left_speed, right_speed
         Jac = Jac2 @ Jac1

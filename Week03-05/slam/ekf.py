@@ -87,10 +87,20 @@ class EKF:
     # the prediction step of EKF
     def predict(self, raw_drive_meas):
 
-        F = self.state_transition(raw_drive_meas)
-        x = self.get_state_vector()
+        F = self.state_transition(raw_drive_meas) #transition jacobian=A
+        x = self.get_state_vector() #x_bar, mu_k
 
-        # TODO: add your codes here to compute the predicted x
+        # TODO: add your codes here to complete the prediction step
+        # 3. Get covariance
+        Q = self.predict_covariance(raw_drive_meas)
+        # 4. Predict covariance
+
+        #bar_Sigk=A*Sigk-1*A_trans+SigQ , pred step
+        P = F@self.P@np.transpose(F)+Q
+
+        # do we overwrite self.P at this step? probably at the update step instead
+
+        return P, x
 
     # the update step of EKF
     def update(self, measurements):
@@ -127,6 +137,7 @@ class EKF:
         n = self.number_landmarks()*2 + 3
         Q = np.zeros((n,n))
         Q[0:3,0:3] = self.robot.covariance_drive(raw_drive_meas)+ 0.01*np.eye(3)
+        # maybe change this hardcoded 0.01 in future to tune parameters?
         return Q
 
     def add_landmarks(self, measurements):
