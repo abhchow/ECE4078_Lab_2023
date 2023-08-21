@@ -161,6 +161,8 @@ class EKF:
         Q = np.zeros((n,n))
         Q[0:3,0:3] = self.robot.covariance_drive(raw_drive_meas)+ 0.01*np.eye(3)
         # maybe change this hardcoded 0.01 in future to tune parameters?
+            # it's saying the uncertainty for x, y, theta is 0.01m (in other words, 1cm)
+            # apparently it's ok to set different values for them, but make sure x and y are the same as each other
         return Q
 
     def add_landmarks(self, measurements):
