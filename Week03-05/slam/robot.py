@@ -136,12 +136,21 @@ class Robot:
         # Derivative of x,y,theta w.r.t. lin_vel, ang_vel
         # TODO: add your codes here to compute Jac2 using lin_vel, ang_vel, dt, th, and th2
         Jac2 = np.zeros((3,2))
-        Jac2[0,0] = 1/ang_vel * (-np.sin(th)+np.sin(th2))
-        Jac2[0,1] = (-lin_vel/ang_vel**2) * (-np.sin(th)+np.sin(th2)) + lin_vel/ang_vel*dt*np.cos(th2)
-        Jac2[1,0] = 1/ang_vel * (np.cos(th)-np.cos(th2))
-        Jac2[1,1] = (-lin_vel/ang_vel**2) * (np.cos(th)-np.cos(th2)) + lin_vel/ang_vel*dt*np.sin(th2)
-        # Jac2[2,0] = 0
-        Jac2[2,1] = dt
+
+        if ang_vel == 0:
+            Jac2[0,0] = np.cos(th)*dt
+            # Jac2[0,1] = 0
+            Jac2[1,0] = np.sin(th)*dt
+            # Jac2[1,1] = 0
+            # Jac2[2,0] = 0
+            # Jac2[2,1] = 0
+        else:
+            Jac2[0,0] = 1/ang_vel * (-np.sin(th)+np.sin(th2))
+            Jac2[0,1] = (-lin_vel/ang_vel**2) * (-np.sin(th)+np.sin(th2)) + lin_vel/ang_vel*dt*np.cos(th2)
+            Jac2[1,0] = 1/ang_vel * (np.cos(th)-np.cos(th2))
+            Jac2[1,1] = (-lin_vel/ang_vel**2) * (np.cos(th)-np.cos(th2)) + lin_vel/ang_vel*dt*np.sin(th2)
+            # Jac2[2,0] = 0
+            Jac2[2,1] = dt
 
         # Derivative of x,y,theta w.r.t. left_speed, right_speed
         Jac = Jac2 @ Jac1
