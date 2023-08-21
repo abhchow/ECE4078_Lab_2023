@@ -90,7 +90,7 @@ class EKF:
         F = self.state_transition(raw_drive_meas) #transition jacobian=A
         x = self.get_state_vector() #x_bar, mu_k
 
-        # TODO: add your codes here to complete the prediction step
+        # TODO: add your codes here to compute the predicted x
         # 3. Get covariance
         Q = self.predict_covariance(raw_drive_meas)
         # 4. Predict covariance
@@ -101,6 +101,7 @@ class EKF:
         # do we overwrite self.P at this step? probably at the update step instead
 
         return P, x
+        #return P, x #self.robot.state[0]? write x into
 
     # the update step of EKF
     def update(self, measurements):
@@ -120,11 +121,24 @@ class EKF:
         # Compute own measurements
         z_hat = self.robot.measure(self.markers, idx_list)
         z_hat = z_hat.reshape((-1,1),order="F")
-        H = self.robot.derivative_measure(self.markers, idx_list)
+        H = self.robot.derivative_measure(self.markers, idx_list) #C in slides
 
         x = self.get_state_vector()
 
         # TODO: add your codes here to compute the updated x
+        # 3. Compute Kalman Gain
+        # req prev sig_k, C, sigma_R
+        temp=np.linalg.inv(H@self.P@np.transpose(H)+R)
+        K = self.P@np.transpose(H)@temp #self.P should be updated in predict func
+
+        # 4. Correct state
+        #mu_k=mu_hat_k+K(zk-h(mu_hat_k))
+        x =x+K@(z-z_hat) #want K to be [3x20], x is the updated x from predict function
+
+        # 5. Correct covariance
+        #sigma_k= (1-KC)*sigma_hat_k
+        P = (np.eye(self.P.shape[0])-K@H)@self.P 
+        return x, self.P
 
 
     def state_transition(self, raw_drive_meas):
