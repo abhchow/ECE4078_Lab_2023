@@ -97,7 +97,8 @@ class EKF:
 
         #bar_Sigk=A*Sigk-1*A_trans+SigQ , pred step
         P = F@self.P@np.transpose(F)+Q
-
+        self.P=P
+        self.robot.state = x
         # do we overwrite self.P at this step? probably at the update step instead
 
         return P, x
@@ -138,7 +139,10 @@ class EKF:
         # 5. Correct covariance
         #sigma_k= (1-KC)*sigma_hat_k
         P = (np.eye(self.P.shape[0])-K@H)@self.P 
-        return x, self.P
+        self.robot.state = x
+        self.P = P
+
+        return x, P
 
 
     def state_transition(self, raw_drive_meas):
