@@ -143,7 +143,8 @@ class EKF:
         # 5. Correct covariance
         #sigma_k= (1-KC)*sigma_hat_k
         P = (np.eye(self.P.shape[0])-K@H)@self.P 
-        self.robot.state = x
+        # self.robot.state = x
+        self.set_state_vector(x)
         self.P = P
 
         return x, P
