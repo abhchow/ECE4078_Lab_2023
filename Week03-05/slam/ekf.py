@@ -134,6 +134,10 @@ class EKF:
 
         # 4. Correct state
         #mu_k=mu_hat_k+K(zk-h(mu_hat_k))
+        print("x:", x.shape)
+        print("K:", K.shape)
+        print("z:", z.shape)
+        print("z_hat:", z_hat.shape)
         x =x+K@(z-z_hat) #want K to be [3x20], x is the updated x from predict function
 
         # 5. Correct covariance
