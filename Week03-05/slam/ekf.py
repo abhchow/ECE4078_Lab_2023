@@ -87,6 +87,7 @@ class EKF:
     # the prediction step of EKF
     def predict(self, raw_drive_meas):
 
+        #call self.robot.drive? 
         F = self.state_transition(raw_drive_meas) #transition jacobian=A
         x = self.get_state_vector() #x_bar, mu_k
 
@@ -94,14 +95,15 @@ class EKF:
         # 3. Get covariance
         Q = self.predict_covariance(raw_drive_meas)
         # 4. Predict covariance
+        #need updated 
+        self.robot.drive(raw_drive_meas)
 
         #bar_Sigk=A*Sigk-1*A_trans+SigQ , pred step
-        P = F@self.P@np.transpose(F)+Q
-        self.P=P
+        self.P=F@self.P@np.transpose(F)+Q
         # self.robot.state = x
         # do we overwrite self.P at this step? probably at the update step instead
+        self.x=x
 
-        return P, x
         #return P, x #self.robot.state[0]? write x into
 
     # the update step of EKF
@@ -138,7 +140,7 @@ class EKF:
         print("K:", K.shape)
         print("z:", z.shape)
         print("z_hat:", z_hat.shape)
-        x =x+K@(z-z_hat) #want K to be [3x20], x is the updated x from predict function
+        self.x =x+K@(z-z_hat) #want K to be [3x20], x is the updated x from predict function
 
         # 5. Correct covariance
         #sigma_k= (1-KC)*sigma_hat_k
@@ -146,8 +148,6 @@ class EKF:
         # self.robot.state = x
         self.set_state_vector(x)
         self.P = P
-
-        return x, P
 
 
     def state_transition(self, raw_drive_meas):
