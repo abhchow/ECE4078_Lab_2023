@@ -3,11 +3,11 @@
 # ===============================================
 # Main params to modify
 # ===============================================
-input_image: example_input_image.jpg
+input_image: example_input_image2.jpg
 output_map_name: test_output.txt
 
 # a reference map to specify the objects (how many for each type) on the map
-reference_map: example_reference_map.txt
+reference_map: example_reference_map2.txt
 
 # fruits - list of fruits to be placed in the arena and their colours
 fruits:
@@ -26,8 +26,8 @@ image_display_res:
 max_click_radius: 25  # unit: [pixels]
 
 arena_size: # unit: [m]
-  x: 3.0
-  y: 3.0
+  x: 2 #3.0
+  y: 2.5 #3.0
 
 # ===============================================
 # less important params (recommend not to change)
