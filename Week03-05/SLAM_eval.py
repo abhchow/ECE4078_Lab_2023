@@ -82,8 +82,11 @@ def compute_rmse(points1, points2):
     assert(points1.shape[0] == points2.shape[0])
     assert(points1.shape[1] == points2.shape[1])
     num_points = points1.shape[1]
+    print(f'xy residuals: {points1-points2}')
     residual = (points1-points2).ravel()
+    print(f'total residuals: {residual}')
     MSE = 1.0/num_points * np.sum(residual**2)
+
 
     return np.sqrt(MSE)
 
