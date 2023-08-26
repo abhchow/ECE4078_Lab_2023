@@ -89,7 +89,7 @@ class EKF:
 
         #call self.robot.drive? 
         F = self.state_transition(raw_drive_meas) #transition jacobian=A
-        x = self.get_state_vector() #x_bar, mu_k
+        x = self.get_state_vector() #x_bar, mu_k #mu_k_bar
 
         # TODO: add your codes here to compute the predicted x
         # 3. Get covariance
@@ -102,7 +102,7 @@ class EKF:
         self.P=F@self.P@np.transpose(F)+Q
         # self.robot.state = x
         # do we overwrite self.P at this step? probably at the update step instead
-        self.x=x
+        # self.x=x
 
         #return P, x #self.robot.state[0]? write x into
 
@@ -126,7 +126,7 @@ class EKF:
         z_hat = z_hat.reshape((-1,1),order="F")
         H = self.robot.derivative_measure(self.markers, idx_list) #C in slides
 
-        x = self.get_state_vector()
+        x = self.get_state_vector() 
 
         # TODO: add your codes here to compute the updated x
         # 3. Compute Kalman Gain
@@ -136,11 +136,7 @@ class EKF:
 
         # 4. Correct state
         #mu_k=mu_hat_k+K(zk-h(mu_hat_k))
-        print("x:", x.shape)
-        print("K:", K.shape)
-        print("z:", z.shape)
-        print("z_hat:", z_hat.shape)
-        self.x =x+K@(z-z_hat) #want K to be [3x20], x is the updated x from predict function
+        x = x+K@(z-z_hat) #want K to be [3x20], x is the updated x from predict function
 
         # 5. Correct covariance
         #sigma_k= (1-KC)*sigma_hat_k

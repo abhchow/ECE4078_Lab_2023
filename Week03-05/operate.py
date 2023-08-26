@@ -78,7 +78,7 @@ class Operate:
                 self.command['motion'])
         if not self.data is None:
             self.data.write_keyboard(lv, rv)
-        dt = time.time() - self.control_clock
+        dt = (time.time() - self.control_clock)
         # running in sim
         if args.ip == 'localhost':
             drive_meas = measure.Drive(lv, rv, dt)
