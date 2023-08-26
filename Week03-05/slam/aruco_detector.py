@@ -47,5 +47,8 @@ class aruco_detector:
         # Draw markers on image copy
         img_marked = img.copy()
         cv2.aruco.drawDetectedMarkers(img_marked, corners, ids)
+        
+        if len(seen_ids) == 0:
+            seen_ids = 'none'
 
         return measurements, img_marked
