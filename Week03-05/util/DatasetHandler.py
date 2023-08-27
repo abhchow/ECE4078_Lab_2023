@@ -6,6 +6,7 @@ import time
 import csv
 import os
 import json
+import datetime
 
 # save a keyboard control sequence and a list of images seen by the robot
 class DatasetWriter:
@@ -107,6 +108,9 @@ class OutputWriter:
         if not os.path.exists(self.folder):
             os.makedirs(self.folder)
         
+        curr_date_time = datetime.datetime.now()
+        dt_string = curr_date_time.strftime("%d.%m.%Y-%H.%M.%S")
+
         self.img_f = open(folder_name+"images.txt", 'w')   
         self.map_f = folder_name+"slam.txt"
 
