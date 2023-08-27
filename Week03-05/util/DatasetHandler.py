@@ -110,17 +110,18 @@ class OutputWriter:
         
         # curr_date_time = datetime.datetime.now()
         # dt_string = curr_date_time.strftime("%d.%m.%Y-%H.%M.%S")
+        # self.map_f = folder_name+"slam_"+dt_string+".txt"
 
         self.img_f = open(folder_name+"images.txt", 'w')
         
-        i = 1
-        path_exists = False
-        while not(path_exists):
-            path = folder_name+f"slam{i}.txt"
-            path_exists = os.path.isfile(path)
+        # i = 1
+        # path_exists = False
+        # while not(path_exists):
+        #     path = folder_name+f"slam{i}.txt"
+        #     path_exists = os.path.isfile(path)
 
-        self.map_f = path
-        # self.map_f = folder_name+"slam_"+dt_string+".txt"
+        # self.map_f = path
+        self.map_f = folder_name+"slam.txt"
 
         self.image_count = 0
         
