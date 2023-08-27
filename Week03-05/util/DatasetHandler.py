@@ -108,11 +108,19 @@ class OutputWriter:
         if not os.path.exists(self.folder):
             os.makedirs(self.folder)
         
-        curr_date_time = datetime.datetime.now()
-        dt_string = curr_date_time.strftime("%d.%m.%Y-%H.%M.%S")
+        # curr_date_time = datetime.datetime.now()
+        # dt_string = curr_date_time.strftime("%d.%m.%Y-%H.%M.%S")
 
-        self.img_f = open(folder_name+"images.txt", 'w')   
-        self.map_f = folder_name+"slam_"+dt_string+".txt"
+        self.img_f = open(folder_name+"images.txt", 'w')
+        
+        i = 1
+        path_exists = False
+        while not(path_exists):
+            path = folder_name+f"slam{i}.txt"
+            path_exists = os.path.isfile(path)
+
+        self.map_f = path
+        # self.map_f = folder_name+"slam_"+dt_string+".txt"
 
         self.image_count = 0
         
