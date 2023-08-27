@@ -112,7 +112,7 @@ class OutputWriter:
         dt_string = curr_date_time.strftime("%d.%m.%Y-%H.%M.%S")
 
         self.img_f = open(folder_name+"images.txt", 'w')   
-        self.map_f = folder_name+"slam.txt"
+        self.map_f = folder_name+"slam_"+dt_string+".txt"
 
         self.image_count = 0
         
