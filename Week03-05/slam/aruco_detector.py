@@ -38,12 +38,9 @@ class aruco_detector:
                 continue
             else:
                 seen_ids.append(idi)
-<<<<<<< Updated upstream
-=======
 
             if int(ids[i]) in list(range(1,11)):
                 self.visited[int(ids[i])-1] = True
->>>>>>> Stashed changes
 
             lm_tvecs = tvecs[ids==idi].T
             lm_bff2d = np.block([[lm_tvecs[2,:]],[-lm_tvecs[0,:]]])
@@ -58,7 +55,5 @@ class aruco_detector:
         img_marked = img.copy()
         cv2.aruco.drawDetectedMarkers(img_marked, corners, ids)
         
-        if len(seen_ids) == 0:
-            seen_ids = 'none'
 
         return measurements, img_marked
