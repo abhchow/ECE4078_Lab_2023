@@ -1,4 +1,4 @@
-python SLAM_eval.py .\lab_output\measured_truth.txt .\lab_output\slam.txt
+python SLAM_eval.py TrueMap.txt .\lab_output\slam.txt
 
 
 

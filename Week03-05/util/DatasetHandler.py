@@ -114,14 +114,15 @@ class OutputWriter:
 
         self.img_f = open(folder_name+"images.txt", 'w')
         
-        # i = 1
-        # path_exists = False
-        # while not(path_exists):
-        #     path = folder_name+f"slam{i}.txt"
-        #     path_exists = os.path.isfile(path)
+        i = 1
+        path_exists = True
+        while path_exists:
+            path = folder_name+f"slam{i}.txt"
+            path_exists = os.path.isfile(path)
+            i = i + 1
 
-        # self.map_f = path
-        self.map_f = folder_name+"slam.txt"
+        self.map_f = path
+        # self.map_f = folder_name+"slam.txt"
 
         self.image_count = 0
         
