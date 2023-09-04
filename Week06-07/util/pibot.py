@@ -27,6 +27,7 @@ class PenguinPi:
         else:
             l_vel = command[0]*tick - command[1]*turning_tick
             r_vel = -command[0]*tick - command[1]*turning_tick # reverse right wheel velocity
+            # r_vel = 1.05*(-command[0]*tick - command[1]*turning_tick) # reverse right wheel velocity
         self.wheel_vel = [l_vel, r_vel]
         if time == 0:
             requests.get(
