@@ -84,15 +84,21 @@ class EKF:
     # Tune your SLAM algorithm here
     # ########################################
 
-    # the prediction step of EKF
     def predict(self, raw_drive_meas):
+        # The prediction step of EKF
 
         F = self.state_transition(raw_drive_meas)
         x = self.get_state_vector()
 
-        # TODO: add your codes here to complete the prediction step
+        Q = self.predict_covariance(raw_drive_meas)
 
-    # the update step of EKF
+        self.robot.drive(raw_drive_meas)
+        #x[0:3, :] = self.robot.state
+        self.P = F @ self.P @ F.T + Q
+
+        #self.set_state_vector(x)
+
+
     def update(self, measurements):
         if not measurements:
             return
@@ -114,7 +120,13 @@ class EKF:
 
         x = self.get_state_vector()
 
-        # TODO: add your codes here to compute the updated x
+        y = z - z_hat
+        S = H @ self.P @ H.T + R
+        K = self.P @ H.T @ np.linalg.inv(S)
+
+        x = x + K @ y
+        self.P = (np.eye(x.shape[0]) - K @ H) @ self.P
+        self.set_state_vector(x)
 
 
     def state_transition(self, raw_drive_meas):
