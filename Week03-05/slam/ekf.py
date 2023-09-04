@@ -100,7 +100,7 @@ class EKF:
 
         #bar_Sigk=A*Sigk-1*A_trans+SigQ , pred step
         self.P=F@self.P@np.transpose(F)+Q
-        # self.robot.state = x
+        self.robot.state = x
         # do we overwrite self.P at this step? probably at the update step instead
         # self.x=x
 
