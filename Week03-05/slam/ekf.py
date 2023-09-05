@@ -84,29 +84,21 @@ class EKF:
     # Tune your SLAM algorithm here
     # ########################################
 
-    # the prediction step of EKF
     def predict(self, raw_drive_meas):
+        # The prediction step of EKF
 
-        #call self.robot.drive? 
-        F = self.state_transition(raw_drive_meas) #transition jacobian=A
-        x = self.get_state_vector() #x_bar, mu_k #mu_k_bar
+        F = self.state_transition(raw_drive_meas)
+        x = self.get_state_vector()
 
-        # TODO: add your codes here to compute the predicted x
-        # 3. Get covariance
         Q = self.predict_covariance(raw_drive_meas)
-        # 4. Predict covariance
-        #need updated 
+
         self.robot.drive(raw_drive_meas)
+        #x[0:3, :] = self.robot.state
+        self.P = F @ self.P @ F.T + Q
 
-        #bar_Sigk=A*Sigk-1*A_trans+SigQ , pred step
-        self.P=F@self.P@np.transpose(F)+Q
-        # self.robot.state = x
-        # do we overwrite self.P at this step? probably at the update step instead
-        # self.x=x
+        #self.set_state_vector(x)
 
-        #return P, x #self.robot.state[0]? write x into
 
-    # the update step of EKF
     def update(self, measurements):
         if not measurements:
             return
@@ -124,26 +116,17 @@ class EKF:
         # Compute own measurements
         z_hat = self.robot.measure(self.markers, idx_list)
         z_hat = z_hat.reshape((-1,1),order="F")
-        H = self.robot.derivative_measure(self.markers, idx_list) #C in slides
+        H = self.robot.derivative_measure(self.markers, idx_list)
 
-        x = self.get_state_vector() 
+        x = self.get_state_vector()
 
-        # TODO: add your codes here to compute the updated x
-        # 3. Compute Kalman Gain
-        # req prev sig_k, C, sigma_R
-        temp=np.linalg.inv(H@self.P@np.transpose(H)+R)
-        K = self.P@np.transpose(H)@temp #self.P should be updated in predict func
+        y = z - z_hat
+        S = H @ self.P @ H.T + R
+        K = self.P @ H.T @ np.linalg.inv(S)
 
-        # 4. Correct state
-        #mu_k=mu_hat_k+K(zk-h(mu_hat_k))
-        x = x+K@(z-z_hat) #want K to be [3x20], x is the updated x from predict function
-
-        # 5. Correct covariance
-        #sigma_k= (1-KC)*sigma_hat_k
-        P = (np.eye(self.P.shape[0])-K@H)@self.P 
-        # self.robot.state = x
+        x = x + K @ y
+        self.P = (np.eye(x.shape[0]) - K @ H) @ self.P
         self.set_state_vector(x)
-        self.P = P
 
 
     def state_transition(self, raw_drive_meas):
@@ -156,9 +139,6 @@ class EKF:
         n = self.number_landmarks()*2 + 3
         Q = np.zeros((n,n))
         Q[0:3,0:3] = self.robot.covariance_drive(raw_drive_meas)+ 0.01*np.eye(3)
-        # maybe change this hardcoded 0.01 in future to tune parameters?
-            # it's saying the uncertainty for x, y, theta is 0.01m (in other words, 1cm)
-            # apparently it's ok to set different values for them, but make sure x and y are the same as each other
         return Q
 
     def add_landmarks(self, measurements):
