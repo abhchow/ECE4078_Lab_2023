@@ -35,7 +35,7 @@ def estimate_pose(camera_matrix, obj_info, robot_pose):
     # there are 8 possible types of fruits and vegs
     ######### Replace with your codes #########
     # TODO: measure actual sizes of targets [width, depth, height] and update the dictionary of true target dimensions
-    target_dimensions_dict = {'orange': [1.0,1.0,1.0], 'lemon': [1.0,1.0,1.0], 
+    target_dimensions_dict = {'orange': [0.075,0.075,0.07], 'lemon': [1.0,1.0,1.0], 
                               'lime': [1.0,1.0,1.0], 'tomato': [1.0,1.0,1.0], 
                               'capsicum': [1.0,1.0,1.0], 'potato': [1.0,1.0,1.0], 
                               'pumpkin': [1.0,1.0,1.0], 'garlic': [1.0,1.0,1.0]}
@@ -80,34 +80,26 @@ def merge_estimations(target_pose_dict):
     ######### Replace with your codes #########
     # TODO: replace it with a solution to merge the multiple occurrences of the same class type (e.g., by a distance threshold)
 
-    #target_pose_dict is just [{'y':num,'x'"num"},{'y':num,'x'"num"}...]
-    target_pose_dict2=np.copy(target_pose_dict)
+    #target_pose_dict is just #will have {"orange_0": {"y": num,"x": num}, "orange_1":...}
 
-    j=0 #counter init
-
-    for i in range(len(target_pose_dict)): #start at 0
-        for k in range(len(target_pose_dict)): #start at 0
-            if (k >= len(target_pose_dict2)) or (i >= len(target_pose_dict2)): #check all other points
-                break
-            else:
-                #print("j=",j)
-                test_pos=[target_pose_dict2[k]['x'],target_pose_dict2[k]['y']] #dict2 dynamic, j dynamic
-                curr_pos=[target_pose_dict2[i]['x'],target_pose_dict2[i]['y']]
-                
+    for index, (key, value) in enumerate(target_pose_dict.items()):
+        head, sep, tail = key.partition('_')
+        key=head
+        for j in range(index+1,len(target_pose_dict)): 
+            key2, value2 = list(target_pose_dict.items())[j]
+            if key in key2:#true, string overlap-->merge
+                test_pos=[value.get('x'),value.get('y')]
+                curr_pos=[value2.get('x'),value2.get('y')]
+                #check position distance apart
                 distance=np.sqrt((test_pos[0]-curr_pos[0])**2+(test_pos[1]-curr_pos[1])**2) #distance threshold be determind by SLAM accuracy
-
-                if (distance<0.07)&(distance!=0): #true->merge
-                    #print(distance)
-                    #print(i,k)
+                if (distance<13): #true->merge
                     new_pos={'y':(test_pos[1]+curr_pos[1])/2,'x':(test_pos[0]+curr_pos[0])/2} #average position
-                    target_pose_dict2[i]=new_pos
-                    target_pose_dict2=np.delete(target_pose_dict2,k)#delete elements from dict
-                    j+=1
-                #else:
-        if i >= len(target_pose_dict2): #check all other points
-            break
-    
-    target_est = target_pose_dict2
+                    target_est.update({key: new_pos})
+                    break #fram outer if loop?
+                else: #2 seperate objects
+                    target_est.update({key+'_'+str(index): value}) #not sure how many of each obejct in arena
+            else:
+                target_est.update({key: value}) #does not add number to target_est labels
     #########
    
     return target_est
@@ -151,7 +143,7 @@ if __name__ == "__main__":
 
     # merge the estimations of the targets so that there are at most 3 estimations of each target type
     target_est = {}
-    target_est = merge_estimations(target_pose_dict)
+    target_est = merge_estimations(target_pose_dict) 
     print(target_est)
     # save target pose estimations
     with open(f'{script_dir}/lab_output/targets.txt', 'w') as fo:

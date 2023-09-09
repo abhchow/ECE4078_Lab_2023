@@ -1,0 +1,20 @@
+{
+  "predictions": [
+    {
+      "x": 304,
+      "y": 104,
+      "width": 32,
+      "height": 48,
+      "confidence": 0.821,
+      "class": "orange"
+    },
+    {
+      "x": 116,
+      "y": 105.5,
+      "width": 62,
+      "height": 55,
+      "confidence": 0.815,
+      "class": "Pumpkin"
+    }
+  ]
+}
