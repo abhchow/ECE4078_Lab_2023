@@ -97,9 +97,9 @@ def merge_estimations(target_pose_dict):
                     target_est.update({key: new_pos})
                     break #fram outer if loop?
                 else: #2 seperate objects
-                    target_est.update({key+'_'+str(index): value}) #not sure how many of each obejct in arena
+                    target_est.update({key+'_'+str(1): value}) #not sure how many of each obejct in arena
             else:
-                target_est.update({key: value}) #does not add number to target_est labels
+                target_est.update({key+'_'+str(0): value}) #does not add number to target_est labels
     #########
    
     return target_est
