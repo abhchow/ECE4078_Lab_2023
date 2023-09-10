@@ -9,7 +9,8 @@ from YOLO.detector import Detector
 
 # list of target fruits and vegs types
 # Make sure the names are the same as the ones used in your YOLO model
-TARGET_TYPES = ['orange', 'lemon', 'lime', 'tomato', 'capsicum', 'potato', 'pumpkin', 'garlic']
+# TARGET_TYPES = ['orange', 'lemon', 'lime', 'tomato', 'capsicum', 'potato', 'pumpkin', 'garlic']
+TARGET_TYPES = ['orange', 'apple', 'kiwi', 'banana', 'pear', 'melon']
 
 
 def estimate_pose(camera_matrix, obj_info, robot_pose):
