@@ -80,35 +80,49 @@ def merge_estimations(target_pose_dict):
     ######### Replace with your codes #########
     # TODO: replace it with a solution to merge the multiple occurrences of the same class type (e.g., by a distance threshold)
 
-    #target_pose_dict is just [{'y':num,'x'"num"},{'y':num,'x'"num"}...]
-    target_pose_dict2=np.copy(target_pose_dict)
+    # initialising values
+    target_partitions={}    # partition into each different object (fruit)
+    # target_est={}           
+    num_poses = len(target_pose_dict)
+    checked = [False]*num_poses
+    threshold = 0.13
 
-    j=0 #counter init
+    # partitioning into each different object
+    for index, (key_old, value) in enumerate(target_pose_dict.items()):
+        head, sep, tail = key_old.partition('_')
+        key=head
 
-    for i in range(len(target_pose_dict)): #start at 0
-        for k in range(len(target_pose_dict)): #start at 0
-            if (k >= len(target_pose_dict2)) or (i >= len(target_pose_dict2)): #check all other points
-                break
-            else:
-                #print("j=",j)
-                test_pos=[target_pose_dict2[k]['x'],target_pose_dict2[k]['y']] #dict2 dynamic, j dynamic
-                curr_pos=[target_pose_dict2[i]['x'],target_pose_dict2[i]['y']]
-                
-                distance=np.sqrt((test_pos[0]-curr_pos[0])**2+(test_pos[1]-curr_pos[1])**2) #distance threshold be determind by SLAM accuracy
+        if not checked[index]:  #boolean to make sure we don't double up on something we already checked
+            if key not in target_partitions: #if the object doesn't exist then create a list for it
+                target_partitions[key] = [] 
+            target_partitions[key].append(value)
 
-                if (distance<0.07)&(distance!=0): #true->merge
-                    #print(distance)
-                    #print(i,k)
-                    new_pos={'y':(test_pos[1]+curr_pos[1])/2,'x':(test_pos[0]+curr_pos[0])/2} #average position
-                    target_pose_dict2[i]=new_pos
-                    target_pose_dict2=np.delete(target_pose_dict2,k)#delete elements from dict
-                    j+=1
-                #else:
-        if i >= len(target_pose_dict2): #check all other points
-            break
-    
-    target_est = target_pose_dict2
-    #########
+    # merges all the close objects together
+    for key, value in target_partitions.items():
+        i=0
+        while i < len(value)-1:
+            curr = value[i]
+            curr_pos = np.array([curr['x'], curr['y']])
+
+            j = i+1
+            while j < len(value):
+                next = value[j]
+                next_pos = np.array([next['x'], next['y']])
+                dist = np.linalg.norm(curr_pos-next_pos)
+                if dist < threshold:
+                    curr = {'y': (curr['y']+next['y'])/2, 'x': (curr['x']+next['x'])/2}
+                    curr_pos = np.array([curr['x'], curr['y']])
+                    target_partitions[key][i]=curr
+                    target_partitions[key].pop(j)
+                else:
+                    j = j+1
+            i = i+1
+
+    # marking a new dict with each separate
+    for key, value in target_partitions.items():
+        for i in range(len(value)):
+            new_key = key+'_'+str(i)
+            target_est[new_key] = value[i]
    
     return target_est
 
