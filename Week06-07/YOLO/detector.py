@@ -27,7 +27,8 @@ class Detector:
             'pear': (0, 255, 0),
             'apple': (0, 0, 255),
             'kiwi': (255, 0, 0),
-            'melon': (255, 255, 0),
+            'potato': (255, 255, 0),
+            'melon': (255, 165, 0),
         }
 
     def detect_single_image(self, img):
