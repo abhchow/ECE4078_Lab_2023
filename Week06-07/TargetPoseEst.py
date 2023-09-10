@@ -79,7 +79,35 @@ def merge_estimations(target_pose_dict):
 
     ######### Replace with your codes #########
     # TODO: replace it with a solution to merge the multiple occurrences of the same class type (e.g., by a distance threshold)
-    target_est = target_pose_dict
+
+    #target_pose_dict is just [{'y':num,'x'"num"},{'y':num,'x'"num"}...]
+    target_pose_dict2=np.copy(target_pose_dict)
+
+    j=0 #counter init
+
+    for i in range(len(target_pose_dict)): #start at 0
+        for k in range(len(target_pose_dict)): #start at 0
+            if (k >= len(target_pose_dict2)) or (i >= len(target_pose_dict2)): #check all other points
+                break
+            else:
+                #print("j=",j)
+                test_pos=[target_pose_dict2[k]['x'],target_pose_dict2[k]['y']] #dict2 dynamic, j dynamic
+                curr_pos=[target_pose_dict2[i]['x'],target_pose_dict2[i]['y']]
+                
+                distance=np.sqrt((test_pos[0]-curr_pos[0])**2+(test_pos[1]-curr_pos[1])**2) #distance threshold be determind by SLAM accuracy
+
+                if (distance<0.07)&(distance!=0): #true->merge
+                    #print(distance)
+                    #print(i,k)
+                    new_pos={'y':(test_pos[1]+curr_pos[1])/2,'x':(test_pos[0]+curr_pos[0])/2} #average position
+                    target_pose_dict2[i]=new_pos
+                    target_pose_dict2=np.delete(target_pose_dict2,k)#delete elements from dict
+                    j+=1
+                #else:
+        if i >= len(target_pose_dict2): #check all other points
+            break
+    
+    target_est = target_pose_dict2
     #########
    
     return target_est
