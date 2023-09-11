@@ -84,7 +84,7 @@ def print_target_fruits_pos(search_list, fruit_list, fruit_true_pos):
     print("Search order:")
     n_fruit = 1
     for fruit in search_list:
-        for i in range(3):
+        for i in range(len(fruit_list)):
             if fruit == fruit_list[i]:
                 print('{}) {} at [{}, {}]'.format(n_fruit,
                                                   fruit,
@@ -136,6 +136,7 @@ def get_robot_pose():
     ####################################################
 
     return robot_pose
+
 
 # main loop
 if __name__ == "__main__":
