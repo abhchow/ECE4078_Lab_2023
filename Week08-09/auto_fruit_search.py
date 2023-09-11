@@ -146,9 +146,11 @@ def get_robot_pose():
     # reminder: we know true map pose, that is given to us
     mapping_utils.load("file_name.txt") #has taglist, markers,covariance
     
+    #most thing from slam>robot.py
     drive_meas = measure.Drive(lv, -rv, dt) #measure
     #replace update_slam() (will not use add_landmarks?)
-    lms, aruco_img = aruco.detect_marker_positions(operate.Operate.img)
+    operate.Operate.take_pic() 
+    lms, aruco_img = aruco.aruco_detector.detect_marker_positions(operate.Operate.img)
     EKF.predict(drive_meas) #predict(raw_drive_meas), add_landmarks,update
     EKF.update(lms)
     #operate.detect_target() #only used w YOLO
