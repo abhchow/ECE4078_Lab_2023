@@ -1,4 +1,4 @@
-# M4 - Autonomous fruit searching
+        # M4 - Autonomous fruit searching
 
 # basic python packages
 import sys, os
@@ -111,15 +111,23 @@ def drive_to_point(waypoint, robot_pose):
     # One simple strategy is to first turn on the spot facing the waypoint,
     # then drive straight to the way point
 
-    wheel_vel = 30 # tick
-    
+    wheel_vel = 30 # tick/s
+    # scale in m/tick
+    # baseline in m
+    # m * tick/m * s/tick = s
+
     # turn towards the waypoint
-    turn_time = 0.0 # replace with your calculation
+    turn_time = baseline/(scale*wheel_vel) # replace with your calculation
     print("Turning for {:.2f} seconds".format(turn_time))
     ppi.set_velocity([0, 1], turning_tick=wheel_vel, time=turn_time)
     
+    wheel_vel = 30 # tick/s
+    # scale in m/tick
+    # dist(waypoint-robot_pose) in m
+    # m  * tick/m * s/tick = s
+
     # after turning, drive straight to the waypoint
-    drive_time = 0.0 # replace with your calculation
+    drive_time = np.linalg.norm(waypoint-robot_pose)/(scale*wheel_vel) # replace with your calculation
     print("Driving for {:.2f} seconds".format(drive_time))
     ppi.set_velocity([1, 0], tick=wheel_vel, time=drive_time)
     ####################################################
