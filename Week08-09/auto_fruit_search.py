@@ -9,10 +9,11 @@ import argparse
 import time
 
 # import SLAM components
-# sys.path.insert(0, "{}/slam".format(os.getcwd()))
-# from slam.ekf import EKF
-# from slam.robot import Robot
-# import slam.aruco_detector as aruco
+#section was prev commented out
+sys.path.insert(0, "{}/slam".format(os.getcwd()))
+from slam.ekf import EKF
+from slam.robot import Robot
+import slam.aruco_detector as aruco
 
 # import utility functions
 sys.path.insert(0, "util")
@@ -130,9 +131,10 @@ def get_robot_pose():
     ####################################################
     # TODO: replace with your codes to estimate the pose of the robot
     # We STRONGLY RECOMMEND you to use your SLAM code from M2 here
-
+    state= EKF.get_state_vector()
+    robot_pose=state
     # update the robot pose [x,y,theta]
-    robot_pose = [0.0,0.0,0.0] # replace with your calculation
+    #robot_pose = [0.0,0.0,0.0] # replace with your calculation
     ####################################################
 
     return robot_pose
