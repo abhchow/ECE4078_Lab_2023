@@ -14,11 +14,15 @@ sys.path.insert(0, "{}/slam".format(os.getcwd()))
 from slam.ekf import EKF
 from slam.robot import Robot
 import slam.aruco_detector as aruco
+import slam.mapping_utils as mapping_utils #added
+
+# ADDED: import operate components
+import operate
 
 # import utility functions
 sys.path.insert(0, "util")
-from pibot import PenguinPi
-import measure as measure
+from util.pibot import PenguinPi
+import util.measure as measure
 
 
 def read_true_map(fname):
@@ -138,9 +142,20 @@ def drive_to_point(waypoint, robot_pose):
 def get_robot_pose():
     ####################################################
     # TODO: replace with your codes to estimate the pose of the robot
-    # We STRONGLY RECOMMEND you to use your SLAM code from M2 here
+    
+    # reminder: we know true map pose, that is given to us
+    mapping_utils.load("file_name.txt") #has taglist, markers,covariance
+    
+    drive_meas = measure.Drive(lv, -rv, dt) #measure
+    #replace update_slam() (will not use add_landmarks?)
+    lms, aruco_img = aruco.detect_marker_positions(operate.Operate.img)
+    EKF.predict(drive_meas) #predict(raw_drive_meas), add_landmarks,update
+    EKF.update(lms)
+    #operate.detect_target() #only used w YOLO
+    #once detect, append to map, even if low certainty, so that path-planning will avoid it
     state= EKF.get_state_vector()
     robot_pose=state
+    
     # update the robot pose [x,y,theta]
     #robot_pose = [0.0,0.0,0.0] # replace with your calculation
     ####################################################
@@ -155,12 +170,18 @@ if __name__ == "__main__":
     parser.add_argument("--port", metavar='', type=int, default=8080)
     args, _ = parser.parse_known_args()
 
+    #copy over from operate, did not copy save/play data
+    #parser.add_argument("--yolo_model", default='YOLO/model/yolov8_model.pt') #use for level3
+    parser.add_argument("--calib_dir", type=str, default="calibration/param/")
+
     ppi = PenguinPi(args.ip,args.port)
 
     # read in the true map
     fruits_list, fruits_true_pos, aruco_true_pos = read_true_map(args.map)
     search_list = read_search_list()
     print_target_fruits_pos(search_list, fruits_list, fruits_true_pos)
+
+    #currently no visuals added (see pygame in operate.py)
 
     waypoint = [0.0,0.0]
     robot_pose = [0.0,0.0,0.0]
