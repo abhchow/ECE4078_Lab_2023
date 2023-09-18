@@ -193,7 +193,7 @@ if __name__ == "__main__":
     print_target_fruits_pos(search_list, fruits_list, fruits_true_pos)
 
     #currently no visuals added (see pygame in operate.py)
-    offset=0.1
+    offset=[0.1,0.1]
     waypoint = fruits_true_pos[0] -offset #will need to iterate through,
     obstacles= np.concatenate((fruits_true_pos,aruco_true_pos),axis=None) #need to check output
     n_iter=200
@@ -238,7 +238,7 @@ if __name__ == "__main__":
             plt.plot(G, obstacles, radius)
 
         # robot drives to the waypoint
-        waypoint = [x,y]
+        waypoint = [x,y]-offset
         drive_to_point(waypoint,robot_pose)
         print("Finished driving to waypoint: {}; New robot pose: {}".format(waypoint,robot_pose))
 

@@ -11,7 +11,7 @@ from matplotlib import collections  as mc
 from collections import deque
 
 class Line():
-  ''' Define line '''
+  #''' Define line '''
     def __init__(self, p0, p1):
         self.p = np.array(p0)
         self.dirn = np.array(p1) - np.array(p0)
@@ -23,7 +23,7 @@ class Line():
 
 
 def Intersection(line, center, radius):
-  ''' Check line-sphere (circle) intersection '''
+  #''' Check line-sphere (circle) intersection '''
     a = np.dot(line.dirn, line.dirn)
     b = 2 * np.dot(line.dirn, line.p - center)
     c = np.dot(line.p - center, line.p - center) - radius * radius
@@ -89,7 +89,7 @@ def newVertex(randvex, nearvex, stepSize):
 
 
 def window(startpos, endpos):
-  ''' Define seach window - 2 times of start to end rectangle'''
+  #''' Define seach window - 2 times of start to end rectangle'''
     width = endpos[0] - startpos[0]
     height = endpos[1] - startpos[1]
     winx = startpos[0] - (width / 2.)
@@ -98,7 +98,7 @@ def window(startpos, endpos):
 
 
 def isInWindow(pos, winx, winy, width, height):
-  ''' Restrict new vertex insides search window'''
+  #''' Restrict new vertex insides search window'''
     if winx < pos[0] < winx+width and \
         winy < pos[1] < winy+height:
         return True
@@ -107,7 +107,7 @@ def isInWindow(pos, winx, winy, width, height):
 
 
 class Graph:
-''' Define graph '''
+    #''' Define graph '''
     def __init__(self, startpos, endpos):
         self.startpos = startpos
         self.endpos = endpos
@@ -149,7 +149,7 @@ class Graph:
 
 
 def RRT(startpos, endpos, obstacles, n_iter, radius, stepSize):
-  ''' RRT algorithm '''
+  #''' RRT algorithm '''
     G = Graph(startpos, endpos)
 
     for _ in range(n_iter):
@@ -178,7 +178,7 @@ def RRT(startpos, endpos, obstacles, n_iter, radius, stepSize):
 
 
 def RRT_star(startpos, endpos, obstacles, n_iter, radius, stepSize):
-  ''' RRT star algorithm '''
+  #''' RRT star algorithm '''
     G = Graph(startpos, endpos)
 
     for _ in range(n_iter):
@@ -232,9 +232,9 @@ def RRT_star(startpos, endpos, obstacles, n_iter, radius, stepSize):
 
 
 def dijkstra(G):
-  '''
-  Dijkstra algorithm for finding shortest path from start position to end.
-  '''
+    # '''
+    # Dijkstra algorithm for finding shortest path from start position to end.
+    #'''
     srcIdx = G.vex2idx[G.startpos]
     dstIdx = G.vex2idx[G.endpos]
 
@@ -268,9 +268,9 @@ def dijkstra(G):
 
 
 def plot(G, obstacles, radius, path=None):
-  '''
-  Plot RRT, obstacles and shortest path
-  '''
+  #'''
+  #Plot RRT, obstacles and shortest path
+  #'''
     px = [x for x, y in G.vertices]
     py = [y for x, y in G.vertices]
     fig, ax = plt.subplots()
