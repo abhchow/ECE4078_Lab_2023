@@ -19,6 +19,9 @@ import slam.mapping_utils as mapping_utils #added
 # ADDED: import operate components
 import operate
 
+#ADDED: rrt for pathplanning
+
+
 # import utility functions
 sys.path.insert(0, "util")
 from util.pibot import PenguinPi
@@ -115,25 +118,25 @@ def drive_to_point(waypoint, robot_pose):
     # One simple strategy is to first turn on the spot facing the waypoint,
     # then drive straight to the way point
 
-    wheel_vel = 30 # tick/s
+    wheel_vel_lin = 30 # tick/s
     # scale in m/tick
     # baseline in m
     # m * tick/m * s/tick = s
 
     # turn towards the waypoint
-    turn_time = baseline/(scale*wheel_vel) # replace with your calculation
+    turn_time = baseline/(scale*wheel_vel_lin) # replace with your calculation
     print("Turning for {:.2f} seconds".format(turn_time))
-    ppi.set_velocity([0, 1], turning_tick=wheel_vel, time=turn_time)
+    ppi.set_velocity([0, 1], turning_tick=wheel_vel_lin, time=turn_time)
     
-    wheel_vel = 30 # tick/s
+    wheel_vel_rot = 30 # tick/s
     # scale in m/tick
     # dist(waypoint-robot_pose) in m
     # m  * tick/m * s/tick = s
 
     # after turning, drive straight to the waypoint
-    drive_time = np.linalg.norm(waypoint-robot_pose)/(scale*wheel_vel) # replace with your calculation
+    drive_time = np.linalg.norm(waypoint-robot_pose)/(scale*wheel_vel_rot) # replace with your calculation
     print("Driving for {:.2f} seconds".format(drive_time))
-    ppi.set_velocity([1, 0], tick=wheel_vel, time=drive_time)
+    ppi.set_velocity([1, 0], tick=wheel_vel_rot, time=drive_time)
     ####################################################
 
     print("Arrived at [{}, {}]".format(waypoint[0], waypoint[1]))
@@ -144,17 +147,19 @@ def get_robot_pose():
     # TODO: replace with your codes to estimate the pose of the robot
     
     # reminder: we know true map pose, that is given to us
-    mapping_utils.load("file_name.txt") #has taglist, markers,covariance
+    #read true map used in main loop
     
     #most thing from slam>robot.py
+    lv=30 #defined in drive to pt
+    rv=30
+    dt = time.time() - operate.Operate.control_clock
     drive_meas = measure.Drive(lv, -rv, dt) #measure
-    #replace update_slam() (will not use add_landmarks?)
-    operate.Operate.take_pic() 
+
+    #replace update_slam()
+    operate.Operate.take_pic()
     lms, aruco_img = aruco.aruco_detector.detect_marker_positions(operate.Operate.img)
     EKF.predict(drive_meas) #predict(raw_drive_meas), add_landmarks,update
     EKF.update(lms)
-    #operate.detect_target() #only used w YOLO
-    #once detect, append to map, even if low certainty, so that path-planning will avoid it
     state= EKF.get_state_vector()
     robot_pose=state
     
@@ -213,6 +218,11 @@ if __name__ == "__main__":
         waypoint = [x,y]
         drive_to_point(waypoint,robot_pose)
         print("Finished driving to waypoint: {}; New robot pose: {}".format(waypoint,robot_pose))
+
+        #operate.Operate.detect_target() #only used w YOLO
+        #self.detector_output= list of lists, box info [label,[x,y,width,height]] for all detected targets in image
+        #once detect, no need to append to map, even if low certainty, so that path-planning will avoid it
+        #add to fruit list, friut true pos (used in planning)
 
         # exit
         ppi.set_velocity([0, 0])
