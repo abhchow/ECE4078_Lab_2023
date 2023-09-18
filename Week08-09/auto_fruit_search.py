@@ -194,11 +194,11 @@ if __name__ == "__main__":
 
     #currently no visuals added (see pygame in operate.py)
     offset=[0.1,0.1]
-    waypoint = fruits_true_pos[0] -offset #will need to iterate through,
+    endpos= fruits_true_pos[0] -offset #will need to iterate through,
     obstacles= np.concatenate((fruits_true_pos,aruco_true_pos),axis=None) #need to check output
-    n_iter=200
-    radius=0.5
-    stepSize=0.7
+    n_iter=100 #make sure not too long
+    radius=0.2 #for clearance of obsticals
+    stepSize= 0.15 #need large stepsize
     robot_pose = [0.0,0.0,0.0]
 
     counter=0
@@ -225,24 +225,25 @@ if __name__ == "__main__":
 
         #add pathplanning
         startpos = robot_pose
-        #waypoint = fruit_pos
+        endpos = [x,y]-offset
 
-        G = rrt.RRT_star(startpos, waypoint, obstacles, n_iter, radius, stepSize)
+        G = rrt.RRT_star(startpos, endpos, obstacles, n_iter, radius, stepSize)
         # G = RRT(startpos, endpos, obstacles, n_iter, radius, stepSize)
 
         if G.success:
             path = rrt.dijkstra(G)
             print(path)
             plt.plot(G, obstacles, radius, path)
+            for i in range(len(path)):
+                # robot drives to the waypoint
+                waypoint = path[i]
+                drive_to_point(waypoint,robot_pose)
+                print("Finished driving to waypoint: {}; New robot pose: {}".format(waypoint,robot_pose))              
         else:
             plt.plot(G, obstacles, radius)
 
-        # robot drives to the waypoint
-        waypoint = [x,y]-offset
-        drive_to_point(waypoint,robot_pose)
-        print("Finished driving to waypoint: {}; New robot pose: {}".format(waypoint,robot_pose))
 
-        #after reaching waypoint should confirm target with YOLO
+        #after reaching endpoint should confirm target with YOLO
         #operate.Operate.detect_target() #only used w YOLO
         #self.detector_output= list of lists, box info [label,[x,y,width,height]] for all detected targets in image
         #once detect, no need to append to map, even if low certainty, so that path-planning will avoid it

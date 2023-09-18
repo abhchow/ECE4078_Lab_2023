@@ -309,9 +309,9 @@ if __name__ == '__main__':
     startpos = (0., 0.)
     endpos = (5., 5.)
     obstacles = [(1., 1.), (2., 2.)]
-    n_iter = 200
+    n_iter = 100
     radius = 0.5
-    stepSize = 0.7
+    stepSize = 2
 
     G = RRT_star(startpos, endpos, obstacles, n_iter, radius, stepSize)
     # G = RRT(startpos, endpos, obstacles, n_iter, radius, stepSize)
