@@ -23,7 +23,7 @@ class Line():
 
 
 def Intersection(line, center, radius):
-  ''' Check line-sphere (circle) intersection '''
+    ''' Check line-sphere (circle) intersection '''
     a = np.dot(line.dirn, line.dirn)
     b = 2 * np.dot(line.dirn, line.p - center)
     c = np.dot(line.p - center, line.p - center) - radius * radius
