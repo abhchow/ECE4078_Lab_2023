@@ -42,7 +42,7 @@ def estimate_pose(camera_matrix, obj_info, robot_pose):
                               'pumpkin': [1.0,1.0,0.08], 'garlic': [1.0,1.0,0.075]}
     #########
 
-    # estimate target pose using bounding box and robot pose
+        # estimate target pose using bounding box and robot pose
     target_class = obj_info[0]     # get predicted target label of the box
     target_box = obj_info[1]       # get bounding box measures: [x,y,width,height]
     true_height = target_dimensions_dict[target_class][2]   # look up true height of by class label
@@ -50,20 +50,28 @@ def estimate_pose(camera_matrix, obj_info, robot_pose):
     # compute pose of the target based on bounding box info, true object height, and robot's pose
     pixel_height = target_box[3]
     pixel_center = target_box[0]
-    distance = true_height/pixel_height * focal_length  # estimated distance between the object and the robot based on height
-    # image size 640x480 pixels, 640/2=320
-    x_shift = 320/2 - pixel_center              # x distance between bounding box centre and centreline in camera view
+    distance = true_height/pixel_height * focal_length  # estimated distance between the robot and the centre of the image plane based on height
+    # training image size 320x240p
+    image_width = 320 # change this if your training image is in a different size (check details of pred_0.png taken by your robot)
+    x_shift = image_width/2 - pixel_center              # x distance between bounding box centre and centreline in camera view
     theta = np.arctan(x_shift/focal_length)     # angle of object relative to the robot
-    horizontal_relative_distance = distance * np.sin(theta)     # relative distance between robot and object on x axis
-    vertical_relative_distance = distance * np.cos(theta)       # relative distance between robot and object on y axis
-    relative_pose = {'y': vertical_relative_distance, 'x': horizontal_relative_distance}    # relative object location
-
     ang = theta + robot_pose[2]     # angle of object in the world frame
+    
+   # relative object location
+    distance_obj = distance/np.cos(theta) # relative distance between robot and object
+    x_relative = distance_obj * np.cos(theta) # relative x pose
+    y_relative = distance_obj * np.sin(theta) # relative y pose
+    relative_pose = {'x': x_relative, 'y': y_relative}
+    #print(f'relative_pose: {relative_pose}')
 
-    # location of object in the world frame
-    target_pose = {'y': (robot_pose[1]+relative_pose['y']*np.sin(ang))[0],
-                   'x': (robot_pose[0]+relative_pose['x']*np.cos(ang))[0]}
-
+    # location of object in the world frame using rotation matrix
+    delta_x_world = x_relative * np.cos(robot_pose[2]) - y_relative * np.sin(robot_pose[2])
+    delta_y_world = x_relative * np.sin(robot_pose[2]) + y_relative * np.cos(robot_pose[2])
+    # add robot pose with delta target pose
+    target_pose = {'y': (robot_pose[1]+delta_y_world)[0],
+                   'x': (robot_pose[0]+delta_x_world)[0]}
+    #print(f'delta_x_world: {delta_x_world}, delta_y_world: {delta_y_world}')
+    #print(f'target_pose: {target_pose}')
     return target_pose
 
 
