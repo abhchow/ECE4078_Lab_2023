@@ -20,7 +20,11 @@ import slam.mapping_utils as mapping_utils #added
 import operate
 
 #ADDED: rrt for pathplanning
-
+import rrt
+from random import random
+import matplotlib.pyplot as plt
+from matplotlib import collections  as mc
+from collections import deque
 
 # import utility functions
 sys.path.insert(0, "util")
@@ -189,10 +193,15 @@ if __name__ == "__main__":
     print_target_fruits_pos(search_list, fruits_list, fruits_true_pos)
 
     #currently no visuals added (see pygame in operate.py)
-
-    waypoint = [0.0,0.0]
+    offset=0.1
+    waypoint = fruits_true_pos[0] -offset #will need to iterate through,
+    obstacles= np.concatenate((fruits_true_pos,aruco_true_pos),axis=None) #need to check output
+    n_iter=200
+    radius=0.5
+    stepSize=0.7
     robot_pose = [0.0,0.0,0.0]
 
+    counter=0
     # The following is only a skeleton code for semi-auto navigation
     while True:
         # enter the waypoints
@@ -214,11 +223,26 @@ if __name__ == "__main__":
         # estimate the robot's pose
         robot_pose = get_robot_pose()
 
+        #add pathplanning
+        startpos = robot_pose
+        #waypoint = fruit_pos
+
+        G = rrt.RRT_star(startpos, waypoint, obstacles, n_iter, radius, stepSize)
+        # G = RRT(startpos, endpos, obstacles, n_iter, radius, stepSize)
+
+        if G.success:
+            path = rrt.dijkstra(G)
+            print(path)
+            plt.plot(G, obstacles, radius, path)
+        else:
+            plt.plot(G, obstacles, radius)
+
         # robot drives to the waypoint
         waypoint = [x,y]
         drive_to_point(waypoint,robot_pose)
         print("Finished driving to waypoint: {}; New robot pose: {}".format(waypoint,robot_pose))
 
+        #after reaching waypoint should confirm target with YOLO
         #operate.Operate.detect_target() #only used w YOLO
         #self.detector_output= list of lists, box info [label,[x,y,width,height]] for all detected targets in image
         #once detect, no need to append to map, even if low certainty, so that path-planning will avoid it
