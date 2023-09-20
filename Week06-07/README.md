@@ -1,3 +1,10 @@
+
+
+## LINK TO TRAINED YOLO MODEL 
+https://drive.google.com/file/d/1I_-IF_YoPgn6DZ6rEeQUKuMG25vw6Ymm/view?usp=drive_link
+
+
+
 # Milestone 3: Object Recognition and Localisation
 - [Introduction](#introduction)
 - [Supporting scripts](#supporting-scripts)
