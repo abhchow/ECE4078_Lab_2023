@@ -17,7 +17,7 @@ import slam.aruco_detector as aruco
 import slam.mapping_utils as mapping_utils #added
 
 # ADDED: import operate components
-import operate
+from operate import Operate
 
 #ADDED: rrt for pathplanning
 import rrt
@@ -156,15 +156,16 @@ def get_robot_pose():
     #most thing from slam>robot.py
     lv=30 #defined in drive to pt
     rv=30
-    dt = time.time() - operate.Operate.control_clock
+    dt = time.time() - operate.control_clock
     drive_meas = measure.Drive(lv, -rv, dt) #measure
 
     #replace update_slam()
-    operate.Operate.take_pic()
-    lms, aruco_img = aruco.aruco_detector.detect_marker_positions(operate.Operate.img)
-    EKF.predict(drive_meas) #predict(raw_drive_meas), add_landmarks,update
-    EKF.update(lms)
-    state= EKF.get_state_vector()
+    operate.take_pic()
+    lms, aruco_img = aruco.aruco_detector.detect_marker_positions(operate.img)
+    #previously used EKF.function_name
+    ekf.predict(drive_meas) #predict(raw_drive_meas), add_landmarks,update
+    ekf.update(lms)
+    state= ekf.get_state_vector()
     robot_pose=state
     
     # update the robot pose [x,y,theta]
@@ -187,6 +188,9 @@ if __name__ == "__main__":
     parser.add_argument("--calib_dir", type=str, default="calibration/param/")
 
     ppi = PenguinPi(args.ip,args.port)
+    ####added instantiate, ekf usually intialised within operate
+    operate = Operate(args)
+    ekf = EKF(args.calib_dir, args.ip) #init uses robot
 
     # read in the true map
     fruits_list, fruits_true_pos, aruco_true_pos = read_true_map(args.map)
