@@ -107,9 +107,9 @@ class Operate:
                 self.ekf_on = False
             self.request_recover_robot = False
         elif self.ekf_on: # and not self.debug_flag:
-            self.ekf.predict(drive_meas)
+            self.ekf.predict(drive_meas) #has predict covariance
             self.ekf.add_landmarks(lms)
-            self.ekf.update(lms)
+            self.ekf.update(lms) #sets covariance
 
     # save images taken by the camera
     def save_image(self):
@@ -310,7 +310,11 @@ if __name__ == "__main__":
         operate.update_keyboard()
         operate.take_pic()
         drive_meas = operate.control()
+        #while in first rotation, slam contrained
+        #while cond=true, and lv=0, rv>0:
         operate.update_slam(drive_meas)
+        #how to forcefully contrain Q-covariance in ekf.predict?
+        #and set it again in efk.update?
         operate.record_data()
         operate.save_image()
         # visualise
