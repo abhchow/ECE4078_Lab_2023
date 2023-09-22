@@ -5,6 +5,8 @@ import os
 import ast
 import cv2
 from YOLO.detector import Detector
+from sklearn.cluster import KMeans
+import matplotlib.pyplot as plt 
 
 
 # list of target fruits and vegs types
@@ -81,25 +83,46 @@ def merge_estimations(target_pose_dict):
     # TODO: replace it with a solution to merge the multiple occurrences of the same class type (e.g., by a distance threshold)
 
     #target_pose_dict is just #will have {"orange_0": {"y": num,"x": num}, "orange_1":...}
+    #replace prev func w k-mean
+    data_array=[]
+    data_headings=[]
 
     for index, (key, value) in enumerate(target_pose_dict.items()):
         head, sep, tail = key.partition('_')
         key=head
-        for j in range(index+1,len(target_pose_dict)): 
-            key2, value2 = list(target_pose_dict.items())[j]
-            if key in key2:#true, string overlap-->merge
-                test_pos=[value.get('x'),value.get('y')]
-                curr_pos=[value2.get('x'),value2.get('y')]
-                #check position distance apart
-                distance=np.sqrt((test_pos[0]-curr_pos[0])**2+(test_pos[1]-curr_pos[1])**2) #distance threshold be determind by SLAM accuracy
-                if (distance<13): #true->merge
-                    new_pos={'y':(test_pos[1]+curr_pos[1])/2,'x':(test_pos[0]+curr_pos[0])/2} #average position
-                    target_est.update({key: new_pos})
-                    break #fram outer if loop?
-                else: #2 seperate objects
-                    target_est.update({key+'_'+str(1): value}) #not sure how many of each obejct in arena
+        data_array.append([value['x'],value['y']])
+        data_headings.append(head)
+
+        data_array=np.array(data_array)
+        kmeans=KMeans(n_clusters=8,random_state=0,n_init="auto").fit(data_array)
+        # print(kmeans.labels_)
+        # print(kmeans.cluster_centers_)
+        # plt.figure()
+        # plt.scatter(data_array[:,0],data_array[:,1])
+        # plt.scatter(kmeans.cluster_centers_[:,0],kmeans.cluster_centers_[:,1])
+
+        current_target=[]
+        #need to equate cluster index 0 with its position
+        for i in range(len(data_headings)):
+            temp_heading=data_headings[i]
+            cluster_num=kmeans.labels_[i]
+            cluster_centre=kmeans.cluster_centers_[cluster_num]
+            #target est update will update repeated clusters, need to add new for repeated fruits
+            if temp_heading in current_target:#true, string overlap
+                #check if not same cluster
+                if (cluster_centre[0] != target_est[temp_heading+'_'+str(0)]['x']) and (cluster_centre[1] !=target_est[temp_heading+'_'+str(0)]['y']):
+                    print(cluster_centre)
+                    #assumes max 2 of each fruit
+                    target_est.update({temp_heading+'_'+str(1):{'y':cluster_centre[1],'x':cluster_centre[0]}})
+                else:
+                    pass#same cluster 
             else:
-                target_est.update({key+'_'+str(0): value}) #does not add number to target_est labels
+                target_est.update({temp_heading+'_'+str(0):{'y':cluster_centre[1],'x':cluster_centre[0]}})
+            #update current_target list at end
+            current_target=[]
+            for index, (key, value) in enumerate(target_est.items()): #loop target_est to check if exist
+                head, sep, tail = key.partition('_')
+                current_target.append(head)
     #########
    
     return target_est
