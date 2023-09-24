@@ -116,7 +116,7 @@ class Graph:
         self.edges = []
         self.success = False
 
-        self.vex2idx = {startpos:0}
+        self.vex2idx = {tuple(startpos):0}
         self.neighbors = {0:[]}
         self.distances = {0:0.}
 
@@ -166,7 +166,7 @@ def RRT(startpos, endpos, obstacles, n_iter, radius, stepSize):
         newidx = G.add_vex(newvex)
         dist = distance(newvex, nearvex)
         G.add_edge(newidx, nearidx, dist)
-
+    
         dist = distance(newvex, G.endpos)
         if dist < 2 * radius:
             endidx = G.add_vex(G.endpos)

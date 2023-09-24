@@ -1,0 +1,17 @@
+known obstacles into the RRT 
+
+PI controller 
+
+occupancy grid. we can use RRT library, as this is not what we are tested on. 
+
+
+for M5, you can teleoperate the robot and freeze the MAP so that SLAM does not change while you go. confirmed 
+
+
+implentation so that slam knows that you are only rotating when you are rotating. 
+
+phase out operate.py , get level 1 working, M2 code stuff in update_slam. object positions are known so dont need to predict (for M1). 
+
+GET ROBOT POSE, PASS EKF AS ONE OF THE VARIABLES 
+ekf, images, drive_measurements, 
+pass in aruco detector ? 

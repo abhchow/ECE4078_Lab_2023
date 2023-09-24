@@ -17,7 +17,8 @@ import slam.aruco_detector as aruco
 import slam.mapping_utils as mapping_utils #added
 
 # ADDED: import operate components
-import operate
+import operate as op
+import ekf
 
 #ADDED: rrt for pathplanning
 import rrt
@@ -146,29 +147,14 @@ def drive_to_point(waypoint, robot_pose):
     print("Arrived at [{}, {}]".format(waypoint[0], waypoint[1]))
 
 
-def get_robot_pose():
-    ####################################################
+def get_robot_pose(operate):
+ ####################################################
     # TODO: replace with your codes to estimate the pose of the robot
-    
-    # reminder: we know true map pose, that is given to us
-    #read true map used in main loop
-    
-    #most thing from slam>robot.py
-    lv=30 #defined in drive to pt
-    rv=30
-    dt = time.time() - operate.Operate.control_clock
-    drive_meas = measure.Drive(lv, -rv, dt) #measure
-
-    #replace update_slam()
-    operate.Operate.take_pic()
-    lms, aruco_img = aruco.aruco_detector.detect_marker_positions(operate.Operate.img)
-    EKF.predict(drive_meas) #predict(raw_drive_meas), add_landmarks,update
-    EKF.update(lms)
-    state= EKF.get_state_vector()
-    robot_pose=state
-    
+    # We STRONGLY RECOMMEND you to use 2your SLAM code from M2 here
+    drive_meas = operate.control()
+    operate.update_slam(drive_meas)
     # update the robot pose [x,y,theta]
-    #robot_pose = [0.0,0.0,0.0] # replace with your calculation
+    robot_pose = operate.ekf.get_state_vector() # replace with your calculation
     ####################################################
 
     return robot_pose
@@ -177,14 +163,14 @@ def get_robot_pose():
 # main loop
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Fruit searching")
-    parser.add_argument("--map", type=str, default='M4_true_map_full.txt') # change to 'M4_true_map_part.txt' for lv2&3
+    parser.add_argument("--map", type=str, default='M4_prac_map_full.txt') # change to 'M4_true_map_part.txt' for lv2&3
     parser.add_argument("--ip", metavar='', type=str, default='192.168.50.1')
     parser.add_argument("--port", metavar='', type=int, default=8080)
-    args, _ = parser.parse_known_args()
-
-    #copy over from operate, did not copy save/play data
-    #parser.add_argument("--yolo_model", default='YOLO/model/yolov8_model.pt') #use for level3
     parser.add_argument("--calib_dir", type=str, default="calibration/param/")
+    parser.add_argument("--save_data", action='store_true')
+    parser.add_argument("--play_data", action='store_true')
+    parser.add_argument("--yolo_model", default='YOLO/model/yolov8_model.pt')
+    args, _ = parser.parse_known_args()
 
     ppi = PenguinPi(args.ip,args.port)
 
@@ -198,7 +184,7 @@ if __name__ == "__main__":
     endpos= fruits_true_pos[0] -offset #will need to iterate through,
     obstacles= np.concatenate((fruits_true_pos,aruco_true_pos),axis=None) #need to check output
     n_iter=100 #make sure not too long
-    radius=0.2 #for clearance of obsticals
+    radius=0.05 #for clearance of obsticals
     stepSize= 0.15 #need large stepsize
     robot_pose = [0.0,0.0,0.0]
 
@@ -222,26 +208,27 @@ if __name__ == "__main__":
             continue
 
         # estimate the robot's pose
-        robot_pose = get_robot_pose()
+        operate = op.Operate(args)
+        robot_pose = get_robot_pose(operate) #needs to be in [x,y]
 
         #add pathplanning
-        startpos = robot_pose
-        endpos = [x,y]-offset
+        startpos = [0,0]
+        endpos = [x,y]
 
-        G = rrt.RRT_star(startpos, endpos, obstacles, n_iter, radius, stepSize)
+        rrt_star_graph = rrt.RRT_star(startpos, endpos, obstacles, n_iter, radius, stepSize)
         # G = RRT(startpos, endpos, obstacles, n_iter, radius, stepSize)
 
-        if G.success:
-            path = rrt.dijkstra(G)
-            print(path)
-            plt.plot(G, obstacles, radius, path)
+        if rrt_star_graph.success:
+            paths = rrt.dijkstra(rrt_star_graph)
+            print(paths)
+            plt.plot(rrt_star_graph, obstacles, radius, path)
             for i in range(len(path)):
                 # robot drives to the waypoint
                 waypoint = path[i]
                 drive_to_point(waypoint,robot_pose)
                 print("Finished driving to waypoint: {}; New robot pose: {}".format(waypoint,robot_pose))              
         else:
-            plt.plot(G, obstacles, radius)
+            plt.plot(rrt_star_graph, obstacles, radius)
 
 
         #after reaching endpoint should confirm target with YOLO
