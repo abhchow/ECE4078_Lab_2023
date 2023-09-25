@@ -119,7 +119,7 @@ def drive_to_point(waypoint, robot_pose):
     # # then drive straight to the way point
     #orient to waypoint 
     #calculate angle diff 
-    angle_diff = robot_pose[3] - np.arctan2(waypoint[1]-robot_pose[1], waypoint[0]-robot_pose[0])
+    angle_diff = robot_pose[2] - np.arctan2(waypoint[1]-robot_pose[1], waypoint[0]-robot_pose[0])
     wheel_vel_lin = 30 # tick/s
     wheel_vel_rot = 15 
     # scale in m/tick
@@ -131,10 +131,10 @@ def drive_to_point(waypoint, robot_pose):
     #turn 
     if angle_diff > 0: 
         #turn left 
-        command = [0,1]
+        command = [0,-1]
     else: 
         #turn right 
-        command = [0,-1]
+        command = [0,1]
     print("Turning for {:.2f} seconds".format(turn_time))
     operate.pibot.set_velocity(command, wheel_vel_lin, wheel_vel_rot, time=turn_time)
     # after turning, drive straight to the waypoint
@@ -142,7 +142,7 @@ def drive_to_point(waypoint, robot_pose):
     # # scale in m/tick
     # # dist(waypoint-robot_pose) in m
     # # m  * tick/m * s/tick = s
-    drive_time = np.linalg.norm(waypoint-robot_pose)/(operate.ekf.robot.wheels_scale*wheel_vel_lin) # replace with your calculation
+    drive_time = np.linalg.norm(np.array(waypoint)-np.array(robot_pose[0:2]))/(operate.ekf.robot.wheels_scale*wheel_vel_lin) # replace with your calculation
     #drive straight forard 
     command = [1,0] 
     print("Driving for {:.2f} seconds".format(drive_time))
@@ -219,32 +219,34 @@ if __name__ == "__main__":
 
         rrt_star_graph = rrt.RRT_star(startpos, endpos, obstacles_tuple, n_iter, radius, stepSize)
 
-        fig, ax = plt.subplots()
-        for edge in rrt_star_graph.edges:
-            v1 = rrt_star_graph.vertices[edge[0]]
-            v0 = rrt_star_graph.vertices[edge[1]]
-            ax.plot((v1[0], v0[0]), (v1[1], v0[1]), 'r-')
-        for vertex in rrt_star_graph.vertices:
-            if (vertex == startpos):
-                ax.plot(vertex[0],vertex[1], 'ko') 
-            else: 
-                ax.plot(vertex[0],vertex[1], 'ro')
-        for obstacle in obstacles_tuple: 
-            obstacle_patch = Circle(obstacle, radius)
-            ax.add_patch(obstacle_patch)
-        ax.text(startpos[0], startpos[1], "startpos")
-        ax.plot(endpos[0], endpos[1], "ko")
-        ax.text(endpos[0], endpos[1], "endpos")
+        # fig, ax = plt.subplots()
+        # for edge in rrt_star_graph.edges:
+        #     v1 = rrt_star_graph.vertices[edge[0]]
+        #     v0 = rrt_star_graph.vertices[edge[1]]
+        #     ax.plot((v1[0], v0[0]), (v1[1], v0[1]), 'r-')
+        # for vertex in rrt_star_graph.vertices:
+        #     if (vertex == startpos):
+        #         ax.plot(vertex[0],vertex[1], 'ko') 
+        #     else: 
+        #         ax.plot(vertex[0],vertex[1], 'ro')
+        # for obstacle in obstacles_tuple: 
+        #     obstacle_patch = Circle(obstacle, radius)
+        #     ax.add_patch(obstacle_patch)
+        # ax.text(startpos[0], startpos[1], "startpos")
+        # ax.plot(endpos[0], endpos[1], "ko")
+        # ax.text(endpos[0], endpos[1], "endpos")
 
-        if rrt_star_graph.success:
-            shortest_path= rrt.dijkstra(rrt_star_graph)            
-            for (x0,y0), (x1,y1) in zip(shortest_path[:-1], shortest_path[1:]):
-                ax.plot((x0,x1), (y0,y1),'b-')
-                ax.plot(x0,y0,'bo')
-        plt.show()
+        # if rrt_star_graph.success:
+        #     shortest_path= rrt.dijkstra(rrt_star_graph)            
+        #     for (x0,y0), (x1,y1) in zip(shortest_path[:-1], shortest_path[1:]):
+        #         ax.plot((x0,x1), (y0,y1),'b-')
+        #         ax.plot(x0,y0,'bo')
+        # plt.show()
 
 
-        #drive to a waypoint 
+        
+        #drive to a waypoint test with manual input  
+        drive_to_point((x,y), (0,0,3*np.pi/4))
 
         # #drive to waypoint 
         # for i in len(shortest_path):
@@ -255,7 +257,7 @@ if __name__ == "__main__":
         #     print("Finished driving to waypoint: {}; New robot pose: {}".format(waypoint,robot_pose))       
 
 
-        robot_pose = operate.ekf.get_state_vector()
+        #robot_pose = operate.ekf.get_state_vector()
             
         #     for i in range(len(path)):
         #         # robot drives to the waypoint
@@ -273,7 +275,7 @@ if __name__ == "__main__":
         #add to fruit list, friut true pos (used in planning)
 
         # exit
-        pi.set_velocity([0, 0])
-        uInput = input("Add a new waypoint? [Y/N]")
-        if uInput == 'N':
-            break
+        # pi.set_velocity([0, 0])
+        # uInput = input("Add a new waypoint? [Y/N]")
+        # if uInput == 'N':
+        #     break
