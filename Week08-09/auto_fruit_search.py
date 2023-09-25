@@ -346,8 +346,10 @@ if __name__ == "__main__":
 
         if rrt_star_graph.success:
             shortest_path= rrt.dijkstra(rrt_star_graph)            
-            for (x0,y0), (x1,y1) in zip(shortest_path[:-1], shortest_path[1:]):
+            for (x0,y0), (x1,y1), (x2,y2) in zip(shortest_path[:-1], shortest_path[1:]):
                 #drive to point via controller
+                theta0=np.arctan(y1-y0,x1-x0)
+                theta1=np.arctan(y2-y1,x2-x1)
                 waypoint=[x0,y0,theta0]
                 goal_position=[x1,y1,theta1]
                 #controller(way_point,goal_position)
