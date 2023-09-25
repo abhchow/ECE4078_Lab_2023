@@ -152,7 +152,86 @@ def drive_to_point(waypoint, robot_pose):
     # ####################################################
     return 
 
+def controller(initial_state, goal_position):
+    #states=[x,y,theta]
+    ########add control
+    K_pv = 0.5
+    K_pw =10
+    K_theta=1.5
 
+    threshold_distance= 0.0005
+    threshold_angle=0.05
+
+    dt= time.time() - operate.control_clock
+    
+    distance_to_goal=get_distance_robot_to_goal(initial_state,goal_position)
+    desired_heading=get_angle_robot_to_goal(initial_state, goal_position)
+    angle_goal_diff=initial_state[2]-goal_position[2]
+
+    while not stop_criteria_met: 
+        
+        wheel_vel_lin = K_pv*distance_to_goal
+        wheel_vel_rot = K_pw*desired_heading+K_theta*angle_goal_diff
+        
+        # Apply control to robot
+        #robot.drive(v_k, w_k, delta_time)
+        drive_to_point(wheel_vel_lin, wheel_vel_rot,dt)
+        new_state = get_robot_pose(wheel_vel_lin,wheel_vel_rot)
+                    
+        distance_to_goal= get_distance_robot_to_goal(new_state, goal_position)
+        desired_heading = get_angle_robot_to_goal(new_state, goal_position)
+        angle_goal_diff=new_state[2]-goal_position[2]
+        
+        #Check for stopping criteria -------------------------------------
+        if (distance_to_goal < threshold_distance) and(angle_goal_diff < threshold_angle):
+            stop_criteria_met = True
+
+    #error=desired_pt- current_pt
+    #control_sig=error*K_gain
+    #x-->error-->controller-->plant-->output
+    #return nothing, already called drive()
+
+#2x controller helper functions
+def get_distance_robot_to_goal(robot_state=np.zeros(3), goal=np.zeros(3)):
+	"""
+	Compute Euclidean distance between the robot and the goal location
+	:param robot_state: 3D vector (x, y, theta) representing the current state of the robot
+	:param goal: 3D Cartesian coordinates of goal location
+	"""
+
+	if goal.shape[0] < 3:
+		goal = np.hstack((goal, np.array([0])))
+
+	x_goal, y_goal,_ = goal
+	x, y,_ = robot_state
+	x_diff = x_goal - x
+	y_diff = y_goal - y
+
+	rho = np.hypot(x_diff, y_diff)
+
+	return rho
+
+def get_angle_robot_to_goal(robot_state=np.zeros(3), goal=np.zeros(3)):
+	"""
+	Compute angle to the goal relative to the heading of the robot.
+	Angle is restricted to the [-pi, pi] interval
+	:param robot_state: 3D vector (x, y, theta) representing the current state of the robot
+	:param goal: 3D Cartesian coordinates of goal location
+	"""
+
+	if goal.shape[0] < 3:
+		goal = np.hstack((goal, np.array([0])))
+
+	x_goal, y_goal,_ = goal
+	x, y, theta = robot_state
+	x_diff = x_goal - x
+	y_diff = y_goal - y
+
+	alpha = clamp_angle(np.arctan2(y_diff, x_diff) - theta)
+
+	return alpha
+
+def get_robot_pose(lv,rv):
 def get_robot_pose(operate):
     ####################################################
     # TODO: replace with your codes to estimate the pose of the robot
@@ -263,6 +342,16 @@ if __name__ == "__main__":
 
 
         #robot_pose = operate.ekf.get_state_vector()
+            for (x0,y0), (x1,y1), (x2,y2) in zip(shortest_path[:-1], shortest_path[1:]):
+                #drive to point via controller
+                theta0=np.arctan(y1-y0,x1-x0)
+                theta1=np.arctan(y2-y1,x2-x1)
+                waypoint=[x0,y0,theta0]
+                goal_position=[x1,y1,theta1]
+                #controller(way_point,goal_position)
+                ax.plot((x0,x1), (y0,y1),'b-')
+                ax.plot(x0,y0,'bo')
+        plt.show()
             
         #     for i in range(len(path)):
         #         # robot drives to the waypoint
