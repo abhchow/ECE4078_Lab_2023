@@ -179,7 +179,7 @@ def get_robot_pose():
 # main loop
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Fruit searching")
-    parser.add_argument("--map", type=str, default='M4_true_map_full.txt') # change to 'M4_true_map_part.txt' for lv2&3
+    parser.add_argument("--map", type=str, default='M4_prac_map_full.txt') # change to 'M4_true_map_part.txt' for lv2&3
     parser.add_argument("--ip", metavar='', type=str, default='192.168.50.1')
     parser.add_argument("--port", metavar='', type=int, default=8080)
     #copy over from operate, did not copy save/play data
@@ -187,16 +187,13 @@ if __name__ == "__main__":
     parser.add_argument("--save_data", action='store_true')
     parser.add_argument("--play_data", action='store_true')
     parser.add_argument("--yolo_model", default='YOLO/model/yolov8_model.pt')
-    #copy over from operate, did not copy save/play data
-    #parser.add_argument("--yolo_model", default='YOLO/model/yolov8_model.pt') #use for level3
-    parser.add_argument("--calib_dir", type=str, default="calibration/param/")
     args, _ = parser.parse_known_args()
 
 
-    ppi = PenguinPi(args.ip,args.port)
-    ####added instantiate, ekf usually intialised within operate
-    operate = Operate(args)
-    ekf = EKF(args.calib_dir, args.ip) #init uses robot
+    # ppi = PenguinPi(args.ip,args.port)
+    # ####added instantiate, ekf usually intialised within operate
+    # operate = Operate(args)
+    # ekf = EKF(args.calib_dir, args.ip) #init uses robot
 
     # read in the true map
     fruits_list, fruits_true_pos, aruco_true_pos = read_true_map(args.map)
@@ -240,8 +237,8 @@ if __name__ == "__main__":
         #operate = Operate(args)
 
         #add pathplanning
-        endpos = (x,y)
         x,y = 1.5,1.5
+        endpos = (x,y)
         startpos = (-1.5,-1.5)
 
         rrt_star_graph = rrt.RRT_star(startpos, endpos, obstacles_tuple, n_iter, radius, stepSize)
