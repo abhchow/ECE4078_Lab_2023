@@ -31,6 +31,7 @@ from collections import deque
 sys.path.insert(0, "util")
 from util.pibot import PenguinPi
 import util.measure as measure
+import pygame
 
 
 
@@ -152,11 +153,13 @@ def drive_to_point(waypoint, robot_pose):
     return 
 
 
-def get_robot_pose():
+def get_robot_pose(operate):
     ####################################################
     # TODO: replace with your codes to estimate the pose of the robot
-    #drive_meas = operate.control()
-    #operate.update_slam(drive_meas)
+    drive_meas = operate.control()
+    operate.update_slam(drive_meas)
+    #operate.ekf.predict(drive_meas)
+    #operate.ekf.update()
     # update the robot pose [x,y,theta]
     robot_pose = operate.ekf.robot.state
     #robot_pose = [0.0,0.0,0.0] # replace with your calculation
@@ -177,7 +180,6 @@ if __name__ == "__main__":
     parser.add_argument("--yolo_model", default='YOLO/model/yolov8_model.pt')
     args, _ = parser.parse_known_args()
 
-
     # read in the true map
     fruits_list, fruits_true_pos, aruco_true_pos = read_true_map(args.map)
     search_list = read_search_list()
@@ -190,10 +192,8 @@ if __name__ == "__main__":
     n_iter=100 #make sure not too long
     radius=0.30 #for clearance of obsticals
     stepSize= 0.5 #need large stepsize
-    robot_pose = [0.0,0.0,0.0]
-
-    counter=0
     # The following is only a skeleton code for semi-auto navigation
+
     while True:
         # enter the waypoints
         # instead of manually enter waypoints, you can give coordinates by clicking on a map, see camera_calibration.py from M2
@@ -236,22 +236,27 @@ if __name__ == "__main__":
         # ax.plot(endpos[0], endpos[1], "ko")
         # ax.text(endpos[0], endpos[1], "endpos")
 
-        # if rrt_star_graph.success:
-        #     shortest_path= rrt.dijkstra(rrt_star_graph)            
+        if rrt_star_graph.success:
+            shortest_path= rrt.dijkstra(rrt_star_graph)            
         #     for (x0,y0), (x1,y1) in zip(shortest_path[:-1], shortest_path[1:]):
         #         ax.plot((x0,x1), (y0,y1),'b-')
         #         ax.plot(x0,y0,'bo')
         # plt.show()
 
 
-        
         #drive to a waypoint test with manual input  
+        initial_state = get_robot_pose(operate)
+        print("Initial robot state: {}", initial_state)
         drive_to_point((x,y), (0,0,3*np.pi/4))
+        #update robot position 
+        final_state = get_robot_pose(operate)
+        print("Final robot state: {}", final_state)
 
-        # #drive to waypoint 
+
+        # #drive to each waypoint 
         # for i in len(shortest_path):
         #     # robot drives to the waypoint
-        #     #waypoint = shortest_path[i]
+        #     waypoint = shortest_path[i]
         #     drive_to_point(waypoint,robot_pose)
         #     #robot_pose = get_robot_pose()
         #     print("Finished driving to waypoint: {}; New robot pose: {}".format(waypoint,robot_pose))       

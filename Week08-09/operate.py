@@ -78,10 +78,11 @@ class Operate:
             self.detector = Detector(args.yolo_model)
             self.yolo_vis = np.ones((240, 320, 3)) * 100
         self.bg = pygame.image.load('pics/gui_mask.jpg')
+        self.args = args 
 
     # wheel control
     def control(self):
-        if args.play_data:
+        if self.args.play_data:
             lv, rv = self.pibot.set_velocity()
         else:
             lv, rv = self.pibot.set_velocity(
@@ -90,7 +91,7 @@ class Operate:
             self.data.write_keyboard(lv, rv)
         dt = time.time() - self.control_clock
         # running in sim
-        if args.ip == 'localhost':
+        if self.args.ip == 'localhost':
             drive_meas = measure.Drive(lv, rv, dt)
         # running on physical robot (right wheel reversed)
         else:
