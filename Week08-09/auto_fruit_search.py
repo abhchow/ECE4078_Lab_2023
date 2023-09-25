@@ -24,6 +24,7 @@ import rrt
 from random import random
 import matplotlib.pyplot as plt
 from matplotlib import collections  as mc
+from matplotlib.patches import Circle
 from collections import deque
 
 # import utility functions
@@ -185,11 +186,11 @@ if __name__ == "__main__":
     parser.add_argument("--save_data", action='store_true')
     parser.add_argument("--play_data", action='store_true')
     parser.add_argument("--yolo_model", default='YOLO/model/yolov8_model.pt')
-    args, _ = parser.parse_known_args()
-
     #copy over from operate, did not copy save/play data
     #parser.add_argument("--yolo_model", default='YOLO/model/yolov8_model.pt') #use for level3
     parser.add_argument("--calib_dir", type=str, default="calibration/param/")
+    args, _ = parser.parse_known_args()
+
 
     ppi = PenguinPi(args.ip,args.port)
     ####added instantiate, ekf usually intialised within operate
@@ -204,52 +205,78 @@ if __name__ == "__main__":
     #currently no visuals added (see pygame in operate.py)
     offset=[0.1,0.1]
     endpos= fruits_true_pos[0] -offset #will need to iterate through,
-    obstacles= np.concatenate((fruits_true_pos,aruco_true_pos),axis=None) #need to check output
+    #fruits_true_pos = np.concatenate((x,y)) 
+    fruits_true_pos_tuple = [tuple(array) for array in fruits_true_pos]  
+    aruco_true_pos_tuple = [tuple(array) for array in aruco_true_pos]
+    obstacles_tuple = fruits_true_pos_tuple+aruco_true_pos_tuple
+    #obstacles= np.concatenate((fruits_true_pos,aruco_true_pos),axis=None) #need to check output
     n_iter=100 #make sure not too long
-    radius=0.2 #for clearance of obsticals
-    stepSize= 0.15 #need large stepsize
+    radius=0.30 #for clearance of obsticals
+    stepSize= 0.5 #need large stepsize
     robot_pose = [0.0,0.0,0.0]
 
     counter=0
     # The following is only a skeleton code for semi-auto navigation
     while True:
-        # enter the waypoints
-        # instead of manually enter waypoints, you can give coordinates by clicking on a map, see camera_calibration.py from M2
-        x,y = 0.0,0.0
-        x = input("X coordinate of the waypoint: ")
-        try:
-            x = float(x)
-        except ValueError:
-            print("Please enter a number.")
-            continue
-        y = input("Y coordinate of the waypoint: ")
-        try:
-            y = float(y)
-        except ValueError:
-            print("Please enter a number.")
-            continue
+    #     # enter the waypoints
+    #     # instead of manually enter waypoints, you can give coordinates by clicking on a map, see camera_calibration.py from M2
+    #     x,y = 0.0,0.0
+    #     x = input("X coordinate of the waypoint: ")
+    #     try:
+    #         x = float(x)
+    #     except ValueError:
+    #         print("Please enter a number.")
+    #         continue
+    #     y = input("Y coordinate of the waypoint: ")
+    #     try:
+    #         y = float(y)
+    #     except ValueError:
+    #         print("Please enter a number.")
+    #         continue
 
         # estimate the robot's pose
-        robot_pose = get_robot_pose()
+        #robot_pose = get_robot_pose(operate) #needs to be in [x,y]
+        #operate = Operate(args)
 
         #add pathplanning
-        startpos = robot_pose
-        endpos = [x,y]-offset
+        endpos = (x,y)
+        x,y = 1.5,1.5
+        startpos = (-1.5,-1.5)
 
-        G = rrt.RRT_star(startpos, endpos, obstacles, n_iter, radius, stepSize)
-        # G = RRT(startpos, endpos, obstacles, n_iter, radius, stepSize)
+        rrt_star_graph = rrt.RRT_star(startpos, endpos, obstacles_tuple, n_iter, radius, stepSize)
 
-        if G.success:
-            path = rrt.dijkstra(G)
-            print(path)
-            plt.plot(G, obstacles, radius, path)
-            for i in range(len(path)):
-                # robot drives to the waypoint
-                waypoint = path[i]
-                drive_to_point(waypoint,robot_pose)
-                print("Finished driving to waypoint: {}; New robot pose: {}".format(waypoint,robot_pose))              
-        else:
-            plt.plot(G, obstacles, radius)
+        fig, ax = plt.subplots()
+        for edge in rrt_star_graph.edges:
+            v1 = rrt_star_graph.vertices[edge[0]]
+            v0 = rrt_star_graph.vertices[edge[1]]
+            ax.plot((v1[0], v0[0]), (v1[1], v0[1]), 'r-')
+        for vertex in rrt_star_graph.vertices:
+            if (vertex == startpos):
+                ax.plot(vertex[0],vertex[1], 'ko') 
+            else: 
+                ax.plot(vertex[0],vertex[1], 'ro')
+        for obstacle in obstacles_tuple: 
+            obstacle_patch = Circle(obstacle, radius)
+            ax.add_patch(obstacle_patch)
+        ax.text(startpos[0], startpos[1], "startpos")
+        ax.plot(endpos[0], endpos[1], "ko")
+        ax.text(endpos[0], endpos[1], "endpos")
+        #plt.show()
+
+        if rrt_star_graph.success:
+            shortest_path= rrt.dijkstra(rrt_star_graph)            
+            for (x0,y0), (x1,y1) in zip(shortest_path[:-1], shortest_path[1:]):
+                ax.plot((x0,x1), (y0,y1),'b-')
+                ax.plot(x0,y0,'bo')
+        plt.show()
+            
+        #     for i in range(len(path)):
+        #         # robot drives to the waypoint
+        #         waypoint = path[i]
+        #         drive_to_point(waypoint,robot_pose)
+        #         print("Finished driving to waypoint: {}; New robot pose: {}".format(waypoint,robot_pose))              
+        # else:
+        #     plt.plot(rrt_star_graph, obstacles, radius)
 
 
         #after reaching endpoint should confirm target with YOLO
