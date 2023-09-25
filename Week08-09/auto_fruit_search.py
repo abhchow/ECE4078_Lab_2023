@@ -111,7 +111,7 @@ def print_target_fruits_pos(search_list, fruit_list, fruit_true_pos):
 # note that this function requires your camera and wheel calibration parameters from M2, and the "util" folder from M1
 # fully automatic navigation:
 # try developing a path-finding algorithm that produces the waypoints automatically
-def drive_to_point(waypoint, robot_pose):
+def drive_to_point(wheel_vel_lin, wheel_vel_rot,dt):
     # imports camera / wheel calibration parameters 
     fileS = "calibration/param/scale.txt"
     scale = np.loadtxt(fileS, delimiter=',')
@@ -123,31 +123,114 @@ def drive_to_point(waypoint, robot_pose):
     # One simple strategy is to first turn on the spot facing the waypoint,
     # then drive straight to the way point
 
-    wheel_vel_lin = 30 # tick/s
+    #wheel_vel_lin = 30 # tick/s
     # scale in m/tick
     # baseline in m
     # m * tick/m * s/tick = s
 
     # turn towards the waypoint
-    turn_time = baseline/(scale*wheel_vel_lin) # replace with your calculation
-    print("Turning for {:.2f} seconds".format(turn_time))
-    ppi.set_velocity([0, 1], turning_tick=wheel_vel_lin, time=turn_time)
+    #turn_time = baseline/(scale*wheel_vel_lin) # replace with your calculation
+    #print("Turning for {:.2f} seconds".format(turn_time))
+    ppi.set_velocity([0, 1], turning_tick=wheel_vel_lin, time=dt)
     
-    wheel_vel_rot = 30 # tick/s
+    #wheel_vel_rot = 30 # tick/s
     # scale in m/tick
     # dist(waypoint-robot_pose) in m
     # m  * tick/m * s/tick = s
 
     # after turning, drive straight to the waypoint
-    drive_time = np.linalg.norm(waypoint-robot_pose)/(scale*wheel_vel_rot) # replace with your calculation
-    print("Driving for {:.2f} seconds".format(drive_time))
-    ppi.set_velocity([1, 0], tick=wheel_vel_rot, time=drive_time)
+    #drive_time = np.linalg.norm(waypoint-robot_pose)/(scale*wheel_vel_rot) # replace with your calculation
+    #print("Driving for {:.2f} seconds".format(drive_time))
+    ppi.set_velocity([1, 0], tick=wheel_vel_rot, time=dt)
     ####################################################
+
+    #while not reached within dist thres, cont calling controller
+
+
+    #########
 
     print("Arrived at [{}, {}]".format(waypoint[0], waypoint[1]))
 
+def controller(initial_state, goal_position):
+    #states=[x,y,theta]
+    ########add control
+    K_pv = 0.5
+    K_pw =10
+    K_theta=1.5
 
-def get_robot_pose():
+    threshold_distance= 0.0005
+    threshold_angle=0.05
+
+    dt= time.time() - operate.control_clock
+    
+    distance_to_goal=get_distance_robot_to_goal(initial_state,goal_position)
+    desired_heading=get_angle_robot_to_goal(initial_state, goal_position)
+    angle_goal_diff=initial_state[2]-goal_position[2]
+
+    while not stop_criteria_met: 
+        
+        wheel_vel_lin = K_pv*distance_to_goal
+        wheel_vel_rot = K_pw*desired_heading+K_theta*angle_goal_diff
+        
+        # Apply control to robot
+        #robot.drive(v_k, w_k, delta_time)
+        drive_to_point(wheel_vel_lin, wheel_vel_rot,dt)
+        new_state = get_robot_pose(wheel_vel_lin,wheel_vel_rot)
+                    
+        distance_to_goal= get_distance_robot_to_goal(new_state, goal_position)
+        desired_heading = get_angle_robot_to_goal(new_state, goal_position)
+        angle_goal_diff=new_state[2]-goal_position[2]
+        
+        #Check for stopping criteria -------------------------------------
+        if (distance_to_goal < threshold_distance) and(angle_goal_diff < threshold_angle):
+            stop_criteria_met = True
+
+    #error=desired_pt- current_pt
+    #control_sig=error*K_gain
+    #x-->error-->controller-->plant-->output
+    #return nothing, already called drive()
+
+#2x controller helper functions
+def get_distance_robot_to_goal(robot_state=np.zeros(3), goal=np.zeros(3)):
+	"""
+	Compute Euclidean distance between the robot and the goal location
+	:param robot_state: 3D vector (x, y, theta) representing the current state of the robot
+	:param goal: 3D Cartesian coordinates of goal location
+	"""
+
+	if goal.shape[0] < 3:
+		goal = np.hstack((goal, np.array([0])))
+
+	x_goal, y_goal,_ = goal
+	x, y,_ = robot_state
+	x_diff = x_goal - x
+	y_diff = y_goal - y
+
+	rho = np.hypot(x_diff, y_diff)
+
+	return rho
+
+def get_angle_robot_to_goal(robot_state=np.zeros(3), goal=np.zeros(3)):
+	"""
+	Compute angle to the goal relative to the heading of the robot.
+	Angle is restricted to the [-pi, pi] interval
+	:param robot_state: 3D vector (x, y, theta) representing the current state of the robot
+	:param goal: 3D Cartesian coordinates of goal location
+	"""
+
+	if goal.shape[0] < 3:
+		goal = np.hstack((goal, np.array([0])))
+
+	x_goal, y_goal,_ = goal
+	x, y, theta = robot_state
+	x_diff = x_goal - x
+	y_diff = y_goal - y
+
+	alpha = clamp_angle(np.arctan2(y_diff, x_diff) - theta)
+
+	return alpha
+
+def get_robot_pose(lv,rv):
     ####################################################
     # TODO: replace with your codes to estimate the pose of the robot
     
@@ -155,8 +238,8 @@ def get_robot_pose():
     #read true map used in main loop
     
     #most thing from slam>robot.py
-    lv=30 #defined in drive to pt
-    rv=30
+    #lv=30 #defined in drive to pt
+    #rv=30
     dt = time.time() - operate.control_clock
     drive_meas = measure.Drive(lv, -rv, dt) #measure
 
@@ -264,6 +347,10 @@ if __name__ == "__main__":
         if rrt_star_graph.success:
             shortest_path= rrt.dijkstra(rrt_star_graph)            
             for (x0,y0), (x1,y1) in zip(shortest_path[:-1], shortest_path[1:]):
+                #drive to point via controller
+                waypoint=[x0,y0,theta0]
+                goal_position=[x1,y1,theta1]
+                #controller(way_point,goal_position)
                 ax.plot((x0,x1), (y0,y1),'b-')
                 ax.plot(x0,y0,'bo')
         plt.show()
