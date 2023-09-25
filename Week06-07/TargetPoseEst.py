@@ -5,7 +5,8 @@ import os
 import ast
 import cv2
 from YOLO.detector import Detector
-
+from sklearn.cluster import KMeans
+from matplotlib  import pyplot as plt
 
 # list of target fruits and vegs types
 # Make sure the names are the same as the ones used in your YOLO model
@@ -95,50 +96,48 @@ def merge_estimations(target_pose_dict):
     ######### Replace with your codes #########
     # TODO: replace it with a solution to merge the multiple occurrences of the same class type (e.g., by a distance threshold)
 
-    # initialising values
-    target_partitions={}    # partition into each different object (fruit)
-    # target_est={}           
-    num_poses = len(target_pose_dict)
-    checked = [False]*num_poses
-    threshold = 0.13
+    #target_pose_dict is just #will have {"orange_0": {"y": num,"x": num}, "orange_1":...}
+    #replace prev func w k-mean
+    data_array=[]
+    data_headings=[]
 
-    # partitioning into each different object
-    for index, (key_old, value) in enumerate(target_pose_dict.items()):
-        head, sep, tail = key_old.partition('_')
+    for index, (key, value) in enumerate(target_pose_dict.items()):
+        head, sep, tail = key.partition('_')
         key=head
+        data_array.append([value['x'],value['y']])
+        data_headings.append(head)
 
-        if not checked[index]:  #boolean to make sure we don't double up on something we already checked
-            if key not in target_partitions: #if the object doesn't exist then create a list for it
-                target_partitions[key] = [] 
-            target_partitions[key].append(value)
+    data_array=np.array(data_array)
+    kmeans=KMeans(n_clusters=8,random_state=0,n_init="auto").fit(data_array)
+    print(kmeans.labels_)
+    print(kmeans.cluster_centers_)
+    plt.figure()
+    plt.scatter(data_array[:,0],data_array[:,1])
+    plt.scatter(kmeans.cluster_centers_[:,0],kmeans.cluster_centers_[:,1])
 
-    # merges all the close objects together
-    for key, value in target_partitions.items():
-        i=0
-        while i < len(value)-1:
-            curr = value[i]
-            curr_pos = np.array([curr['x'], curr['y']])
-
-            j = i+1
-            while j < len(value):
-                next = value[j]
-                next_pos = np.array([next['x'], next['y']])
-                dist = np.linalg.norm(curr_pos-next_pos)
-                if dist < threshold:
-                    curr = {'y': (curr['y']+next['y'])/2, 'x': (curr['x']+next['x'])/2}
-                    curr_pos = np.array([curr['x'], curr['y']])
-                    target_partitions[key][i]=curr
-                    target_partitions[key].pop(j)
-                else:
-                    j = j+1
-            i = i+1
-
-    # marking a new dict with each separate
-    for key, value in target_partitions.items():
-        for i in range(len(value)):
-            new_key = key+'_'+str(i)
-            target_est[new_key] = value[i]
-   
+    current_target=[]
+    #need to equate cluster index 0 with its position
+    for i in range(len(data_headings)):
+        temp_heading=data_headings[i]
+        cluster_num=kmeans.labels_[i]
+        cluster_centre=kmeans.cluster_centers_[cluster_num]
+        #target est update will update repeated clusters, need to add new for repeated fruits
+        if temp_heading in current_target:#true, string overlap
+            #check if not same cluster
+            if (cluster_centre[0] != target_est[temp_heading+'_'+str(0)]['x']) and (cluster_centre[1] !=target_est[temp_heading+'_'+str(0)]['y']):
+                print(cluster_centre)
+                #assumes max 2 of each fruit
+                target_est.update({temp_heading+'_'+str(1):{'y':cluster_centre[1],'x':cluster_centre[0]}})
+            else:
+                pass#same cluster 
+        else:
+            target_est.update({temp_heading+'_'+str(0):{'y':cluster_centre[1],'x':cluster_centre[0]}})
+        #update current_target list at end
+        current_target=[]
+        for index, (key, value) in enumerate(target_est.items()): #loop target_est to check if exist
+            head, sep, tail = key.partition('_')
+            current_target.append(head)
+    #########
     return target_est
 
 
