@@ -93,6 +93,7 @@ class EKF:
         Q = self.predict_covariance(raw_drive_meas)
 
         self.robot.drive(raw_drive_meas)
+        print(f"predicted x before update: {self.robot.state}")
         #x[0:3, :] = self.robot.state
         self.P = F @ self.P @ F.T + Q
 
@@ -100,7 +101,9 @@ class EKF:
 
 
     def update(self, measurements):
+        print("entered update")
         if not measurements:
+            print("not measurements")
             return
 
         # Construct measurement index list
@@ -118,13 +121,21 @@ class EKF:
         z_hat = z_hat.reshape((-1,1),order="F")
         H = self.robot.derivative_measure(self.markers, idx_list)
 
+
         x = self.get_state_vector()
+        # print(f"x before update: {x}")
 
         y = z - z_hat
         S = H @ self.P @ H.T + R
         K = self.P @ H.T @ np.linalg.inv(S)
 
+
+        print(f"K: {K}")
+        print(f"y: {y}")
+
         x = x + K @ y
+        print(f"x after update: {x}")
+
         self.P = (np.eye(x.shape[0]) - K @ H) @ self.P
         self.set_state_vector(x)
 

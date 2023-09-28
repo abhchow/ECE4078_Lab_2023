@@ -108,6 +108,7 @@ class Operate:
 
     # SLAM with ARUCO markers       
     def update_slam(self, drive_meas):
+        # print("we update slam")
         lms, self.aruco_img = self.aruco_det.detect_marker_positions(self.img)
         if self.request_recover_robot:
             is_success = self.ekf.recover_from_pause(lms)
@@ -119,7 +120,9 @@ class Operate:
                 self.ekf_on = False
             self.request_recover_robot = False
         elif self.ekf_on:  # and not self.debug_flag:
+            # print("ekf is on")
             self.ekf.predict(drive_meas)
+            print(f"predict P: {self.ekf.P}")
             self.ekf.add_landmarks(lms)
             self.ekf.update(lms)
 

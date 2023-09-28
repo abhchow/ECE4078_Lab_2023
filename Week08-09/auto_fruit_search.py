@@ -137,15 +137,19 @@ def drive_to_point(waypoint, robot_pose,dt):
     
     #orient to waypoint 
     #calculate angle diff 
+    print(robot_pose)
     angle_diff = robot_pose[2] - np.arctan2(waypoint[1]-robot_pose[1], waypoint[0]-robot_pose[0])
     wheel_vel_lin = 30 # tick/s
     wheel_vel_rot = 15 
+
+    
+
     # scale in m/tick
     # baseline in m
     # angle_diff in rad 
     # wheel vel in tick /s
     # m * tick/m * s/tick = s
-    turn_time = angle_diff*operate.ekf.robot.wheels_width/(operate.ekf.robot.wheels_scale*wheel_vel_lin)
+    turn_time = np.abs(angle_diff*operate.ekf.robot.wheels_width/(operate.ekf.robot.wheels_scale*wheel_vel_lin))
     #turn 
     if angle_diff > 0: 
         #turn left 
@@ -153,8 +157,12 @@ def drive_to_point(waypoint, robot_pose,dt):
     else: 
         #turn right 
         command = [0,1]
-    print("Turning for {:.2f} seconds".format(turn_time))
-    operate.pibot.set_velocity(command, wheel_vel_lin, wheel_vel_rot, time=turn_time)
+    print(f"Turning for {turn_time} seconds")
+    lv, rv = operate.pibot.set_velocity(command, 0, wheel_vel_rot, time=turn_time)
+    operate.take_pic()
+    drive_meas = measure.Drive(lv, -rv, turn_time)
+    print(drive_meas)
+    operate.update_slam(drive_meas)
     # curr_time = 0
     # while curr_time < turn_time:
     #     operate.pibot.set_velocity(command, wheel_vel_lin, wheel_vel_rot, time=dt)
@@ -172,13 +180,16 @@ def drive_to_point(waypoint, robot_pose,dt):
     #drive straight forard 
     command = [1,0] 
     print("Driving for {:.2f} seconds".format(drive_time))
-    operate.pibot.set_velocity(command, wheel_vel_lin, wheel_vel_rot, time=drive_time)    
+    lv, rv = operate.pibot.set_velocity(command, wheel_vel_lin, 0, time=drive_time)    
+    operate.take_pic()
+    drive_meas = measure.Drive(lv, -rv, drive_time)
+    print(drive_meas)
+    operate.update_slam(drive_meas)
     print("Arrived at [{}, {}]".format(waypoint[0], waypoint[1]))
 
-    operate.take_pic()
-    drive_meas = measure.Drive(wheel_vel_lin, wheel_vel_rot, dt)
-    operate.update_slam(drive_meas)
 
+    
+    # operate.pibot.set_velocity(command, 0, 0, time=drive_time)   
     # ####################################################
     return 
 
@@ -261,12 +272,14 @@ def get_angle_robot_to_goal(robot_state=np.zeros(3), goal=np.zeros(3)):
 
 	return alpha
 
-def get_robot_pose(lv,rv):
+def get_robot_pose(wheel_vel_lin, wheel_vel_rot, dt):
     ####################################################
     # TODO: replace with your codes to estimate the pose of the robot
     
     #dt = time.time() - operate.control_clock
     #drive_meas = measure.Drive(lv, -rv, dt) #measure
+    # lv, rv = operate.ekf.robot.convert_wheels_to_leftright(0, wheel_vel_rot)
+    # drive_meas = measure.Drive(lv, rv, turn_time)
 
     #replace update_slam()
     #operate.take_pic()
@@ -275,8 +288,7 @@ def get_robot_pose(lv,rv):
     #operate.ekf.predict(drive_meas) #predict(raw_drive_meas), add_landmarks,update
     #operate.ekf.update(lms)
     #state= operate.ekf.get_state_vector()
-
-    robot_pose=operate.robot.state
+    robot_pose=np.reshape(operate.ekf.robot.state, (3,))
     #robot_pose = [0.0,0.0,0.0] # replace with your calculation
     ####################################################
     return robot_pose
@@ -327,6 +339,7 @@ if __name__ == "__main__":
             continue
 
         operate = Operate(args)
+        operate.ekf_on = True
 
         #add pathplanning
         endpos = (1.5,1.5)
@@ -358,12 +371,18 @@ if __name__ == "__main__":
         #         ax.plot(x0,y0,'bo')
         # plt.show()
 
+        wheel_vel_lin=30
+        wheel_vel_rot=30
+        dt=0.1
+
          # estimate the robot's pose
-        robot_pose = get_robot_pose()
+        robot_pose = get_robot_pose(wheel_vel_lin, wheel_vel_rot, dt)
 
         # robot drives to the waypoint
         waypoint = [x,y]
-        drive_to_point(waypoint,robot_pose)
+        drive_to_point(waypoint,robot_pose, 0.1)
+        
+        robot_pose = get_robot_pose(wheel_vel_lin, wheel_vel_rot, dt)
         print("Finished driving to waypoint: {}; New robot pose: {}".format(waypoint,robot_pose))
         #drive to a waypoint test with manual input  
         # initial_state = get_robot_pose(operate)
@@ -412,7 +431,7 @@ if __name__ == "__main__":
         #add to fruit list, friut true pos (used in planning)
 
         # exit
-        # pi.set_velocity([0, 0])
+        operate.pibot.set_velocity([0, 0])
         # uInput = input("Add a new waypoint? [Y/N]")
         # if uInput == 'N':
         #     break
