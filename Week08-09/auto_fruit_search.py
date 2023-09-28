@@ -35,6 +35,22 @@ import pygame
 
 
 
+def clamp_angle(rad_angle=0, min_value=-np.pi, max_value=np.pi):
+	"""
+	Restrict angle to the range [min, max]
+	:param rad_angle: angle in radians
+	:param min_value: min angle value
+	:param max_value: max angle value
+	"""
+
+	if min_value > 0:
+		min_value *= -1
+
+	angle = (rad_angle + max_value) % (2 * np.pi) + min_value
+
+	return angle
+
+
 def read_true_map(fname):
     """Read the ground truth map and output the pose of the ArUco markers and 5 target fruits&vegs to search for
 
@@ -368,17 +384,17 @@ if __name__ == "__main__":
         #     print("Finished driving to waypoint: {}; New robot pose: {}".format(waypoint,robot_pose))       
 
 
-        #robot_pose = operate.ekf.get_state_vector()
-            for (x0,y0), (x1,y1), (x2,y2) in zip(shortest_path[:-1], shortest_path[1:]):
-                #drive to point via controller
-                theta0=np.arctan(y1-y0,x1-x0)
-                theta1=np.arctan(y2-y1,x2-x1)
-                waypoint=[x0,y0,theta0]
-                goal_position=[x1,y1,theta1]
-                #controller(way_point,goal_position)
-                ax.plot((x0,x1), (y0,y1),'b-')
-                ax.plot(x0,y0,'bo')
-        plt.show()
+        # #robot_pose = operate.ekf.get_state_vector()
+        #     for (x0,y0), (x1,y1), (x2,y2) in zip(shortest_path[:-1], shortest_path[1:]):
+        #         #drive to point via controller
+        #         theta0=np.arctan(y1-y0,x1-x0)
+        #         theta1=np.arctan(y2-y1,x2-x1)
+        #         waypoint=[x0,y0,theta0]
+        #         goal_position=[x1,y1,theta1]
+        #         #controller(way_point,goal_position)
+        #         ax.plot((x0,x1), (y0,y1),'b-')
+        #         ax.plot(x0,y0,'bo')
+        # plt.show()
             
         #     for i in range(len(path)):
         #         # robot drives to the waypoint
