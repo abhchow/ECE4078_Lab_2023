@@ -122,7 +122,7 @@ class Operate:
         elif self.ekf_on:  # and not self.debug_flag:
             # print("ekf is on")
             self.ekf.predict(drive_meas)
-            print(f"predict P: {self.ekf.P}")
+            # print(f"predict P: {self.ekf.P}")
             self.ekf.add_landmarks(lms)
             self.ekf.update(lms)
 

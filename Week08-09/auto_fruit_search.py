@@ -137,7 +137,7 @@ def drive_to_point(waypoint, robot_pose,dt):
     
     #orient to waypoint 
     #calculate angle diff 
-    print(robot_pose)
+   
     angle_diff = robot_pose[2] - np.arctan2(waypoint[1]-robot_pose[1], waypoint[0]-robot_pose[0])
     wheel_vel_lin = 30 # tick/s
     wheel_vel_rot = 15 
@@ -157,11 +157,11 @@ def drive_to_point(waypoint, robot_pose,dt):
     else: 
         #turn right 
         command = [0,1]
-    print(f"Turning for {turn_time} seconds")
+
     lv, rv = operate.pibot.set_velocity(command, 0, wheel_vel_rot, time=turn_time)
     operate.take_pic()
     drive_meas = measure.Drive(lv, -rv, turn_time)
-    print(drive_meas)
+
     operate.update_slam(drive_meas)
     # curr_time = 0
     # while curr_time < turn_time:
@@ -179,11 +179,11 @@ def drive_to_point(waypoint, robot_pose,dt):
     drive_time = np.linalg.norm(np.array(waypoint)-np.array(robot_pose[0:2]))/(operate.ekf.robot.wheels_scale*wheel_vel_lin) # replace with your calculation
     #drive straight forard 
     command = [1,0] 
-    print("Driving for {:.2f} seconds".format(drive_time))
+    
     lv, rv = operate.pibot.set_velocity(command, wheel_vel_lin, 0, time=drive_time)    
     operate.take_pic()
     drive_meas = measure.Drive(lv, -rv, drive_time)
-    print(drive_meas)
+    
     operate.update_slam(drive_meas)
     print("Arrived at [{}, {}]".format(waypoint[0], waypoint[1]))
 
@@ -289,6 +289,7 @@ def get_robot_pose(wheel_vel_lin, wheel_vel_rot, dt):
     #operate.ekf.update(lms)
     #state= operate.ekf.get_state_vector()
     robot_pose=np.reshape(operate.ekf.robot.state, (3,))
+    print(robot_pose)
     #robot_pose = [0.0,0.0,0.0] # replace with your calculation
     ####################################################
     return robot_pose
@@ -321,6 +322,9 @@ if __name__ == "__main__":
     stepSize= 0.5 #need large stepsize
     # The following is only a skeleton code for semi-auto navigation
 
+    operate = Operate(args)
+    operate.ekf_on = True
+
     while True:
         # enter the waypoints
         # instead of manually enter waypoints, you can give coordinates by clicking on a map, see camera_calibration.py from M2
@@ -338,8 +342,6 @@ if __name__ == "__main__":
             print("Please enter a number.")
             continue
 
-        operate = Operate(args)
-        operate.ekf_on = True
 
         #add pathplanning
         endpos = (1.5,1.5)
