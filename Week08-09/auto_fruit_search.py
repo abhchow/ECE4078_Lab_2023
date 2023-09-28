@@ -113,7 +113,7 @@ def print_target_fruits_pos(search_list, fruit_list, fruit_true_pos):
 # note that this function requires your camera and wheel calibration parameters from M2, and the "util" folder from M1
 # fully automatic navigation:
 # try developing a path-finding algorithm that produces the waypoints automatically
-def drive_to_point(waypoint, robot_pose):
+def drive_to_point(waypoint, robot_pose,dt):
     # ####################################################
     # # TODO: replace with your codes to make the robot drive to the waypoint
     # # One simple strategy is to first turn on the spot facing the waypoint,
@@ -137,7 +137,7 @@ def drive_to_point(waypoint, robot_pose):
         #turn right 
         command = [0,1]
     print("Turning for {:.2f} seconds".format(turn_time))
-    operate.pibot.set_velocity(command, wheel_vel_lin, wheel_vel_rot, time=turn_time)
+    operate.pibot.set_velocity(command, wheel_vel_lin, wheel_vel_rot, time=dt)
     # after turning, drive straight to the waypoint
     # wheel_vel_rot = 30 # tick/s
     # # scale in m/tick
@@ -147,7 +147,7 @@ def drive_to_point(waypoint, robot_pose):
     #drive straight forard 
     command = [1,0] 
     print("Driving for {:.2f} seconds".format(drive_time))
-    operate.pibot.set_velocity(command, wheel_vel_lin, wheel_vel_rot, time=drive_time)    
+    operate.pibot.set_velocity(command, wheel_vel_lin, wheel_vel_rot, time=dt)    
     print("Arrived at [{}, {}]".format(waypoint[0], waypoint[1]))
     # ####################################################
     return 
@@ -232,15 +232,19 @@ def get_angle_robot_to_goal(robot_state=np.zeros(3), goal=np.zeros(3)):
 	return alpha
 
 def get_robot_pose(lv,rv):
-def get_robot_pose(operate):
     ####################################################
     # TODO: replace with your codes to estimate the pose of the robot
-    drive_meas = operate.control()
-    operate.update_slam(drive_meas)
-    #operate.ekf.predict(drive_meas)
-    #operate.ekf.update()
-    # update the robot pose [x,y,theta]
-    robot_pose = operate.ekf.robot.state
+    dt = time.time() - operate.control_clock
+    drive_meas = measure.Drive(lv, -rv, dt) #measure
+
+    #replace update_slam()
+    operate.take_pic()
+    lms, aruco_img = aruco.aruco_detector.detect_marker_positions(operate.img)
+    #previously used EKF.function_name
+    operate.ekf.predict(drive_meas) #predict(raw_drive_meas), add_landmarks,update
+    operate.ekf.update(lms)
+    state= operate.ekf.get_state_vector()
+    robot_pose=state
     #robot_pose = [0.0,0.0,0.0] # replace with your calculation
     ####################################################
     return robot_pose
@@ -322,7 +326,7 @@ if __name__ == "__main__":
         #         ax.plot(x0,y0,'bo')
         # plt.show()
 
-
+        
         #drive to a waypoint test with manual input  
         initial_state = get_robot_pose(operate)
         print("Initial robot state: {}", initial_state)
@@ -330,7 +334,8 @@ if __name__ == "__main__":
         #update robot position 
         final_state = get_robot_pose(operate)
         print("Final robot state: {}", final_state)
-
+        operate.update_slam()
+ 
 
         # #drive to each waypoint 
         # for i in len(shortest_path):
