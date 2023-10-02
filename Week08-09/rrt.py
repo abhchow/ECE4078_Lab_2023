@@ -176,14 +176,34 @@ def RRT(startpos, endpos, obstacles, n_iter, radius, stepSize):
             # break
     return G
 
+def in_bounds(vex_coords, bounds):
+    x, y = vex_coords
+    xmin, xmax, ymin, ymax = bounds
+    if x > xmin and x < xmax and y > ymin and y < ymax:
+        return True
+    return False
 
-def RRT_star(startpos, endpos, obstacles, n_iter, radius, stepSize):
-    ''' RRT star algorithm '''
+def RRT_star(startpos, endpos, obstacles, n_iter, radius, stepSize, bounds, goal_radius):
+    """RRT star algorithm  
+
+    Args:
+        startpos (_type_): _description_
+        endpos (_type_): _description_
+        obstacles (_type_): _description_
+        n_iter (_type_): _description_
+        radius (_type_): _description_
+        stepSize (_type_): _description_
+        bounds (tuple): tuple of length 4 containing (xmin, xmax, ymin, ymax)
+        goal_radius (float): distance the robot has to get from the goal object to be close enough
+
+    Returns:
+        _type_: _description_
+    """
     G = Graph(startpos, endpos)
 
     for _ in range(n_iter):
         randvex = G.randomPosition()
-        if isInObstacle(randvex, obstacles, radius):
+        if isInObstacle(randvex, obstacles, radius) or not in_bounds(randvex, bounds):
             continue
 
         nearvex, nearidx = nearest(G, randvex, obstacles, radius)
@@ -216,7 +236,8 @@ def RRT_star(startpos, endpos, obstacles, n_iter, radius, stepSize):
                 G.distances[idx] = G.distances[newidx] + dist
 
         dist = distance(newvex, G.endpos)
-        if dist < 2 * radius:
+        if dist < goal_radius:
+        # if dist < 2 * radius:
             endidx = G.add_vex(G.endpos)
             G.add_edge(newidx, endidx, dist)
             try:
