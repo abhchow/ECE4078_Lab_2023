@@ -101,10 +101,10 @@ class EKF:
 
 
     def update(self, measurements):
-        print("entered update")
-        if not measurements:
-            print("not measurements")
-            return
+        # print("entered update")
+        # if not measurements:
+        #     print("not measurements")
+        #     return
 
         # Construct measurement index list
         tags = [lm.tag for lm in measurements]

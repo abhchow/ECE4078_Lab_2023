@@ -160,6 +160,8 @@ def RRT(startpos, endpos, obstacles, n_iter, radius, stepSize):
         nearvex, nearidx = nearest(G, randvex, obstacles, radius)
         if nearvex is None:
             continue
+        elif distance(nearvex, endpos) < radius:
+            continue
 
         newvex = newVertex(randvex, nearvex, stepSize)
 
@@ -237,14 +239,13 @@ def RRT_star(startpos, endpos, obstacles, n_iter, radius, stepSize, bounds, goal
 
         dist = distance(newvex, G.endpos)
         if dist < goal_radius:
-        # if dist < 2 * radius:
-            endidx = G.add_vex(G.endpos)
-            G.add_edge(newidx, endidx, dist)
-            try:
-                G.distances[endidx] = min(G.distances[endidx], G.distances[newidx]+dist)
-            except:
-                G.distances[endidx] = G.distances[newidx]+dist
-
+            # endidx = G.add_vex(G.endpos)
+            # G.add_edge(newidx, endidx, dist)
+            # try:
+            #     G.distances[endidx] = min(G.distances[endidx], G.distances[newidx]+dist)
+            # except:
+                # G.distances[endidx] = G.distances[newidx]+dist
+            G.true_goal = newvex
             G.success = True
             #print('success')
             # break
@@ -257,7 +258,8 @@ def dijkstra(G):
     Dijkstra algorithm for finding shortest path from start position to end.
     '''
     srcIdx = G.vex2idx[G.startpos]
-    dstIdx = G.vex2idx[G.endpos]
+    dstIdx = G.vex2idx[G.true_goal]
+    # dstIdx = G.vex2idx[G.endpos]
 
     # build dijkstra
     nodes = list(G.neighbors.keys())

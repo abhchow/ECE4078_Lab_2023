@@ -124,7 +124,8 @@ class Operate:
             self.ekf.predict(drive_meas)
             # print(f"predict P: {self.ekf.P}")
             self.ekf.add_landmarks(lms)
-            self.ekf.update(lms)
+            if len(lms) > 1:
+                self.ekf.update(lms)
 
     # using computer vision to detect targets
     def detect_target(self):

@@ -96,7 +96,7 @@ def read_search_list():
     @return: search order of the target fruits
     """
     search_list = []
-    with open('search_list.txt', 'r') as fd:
+    with open('M4_Lab1_shopping_list.txt', 'r') as fd:
         fruits = fd.readlines()
 
         for fruit in fruits:
@@ -290,7 +290,7 @@ def get_robot_pose(wheel_vel_lin, wheel_vel_rot, dt):
     #operate.ekf.update(lms)
     #state= operate.ekf.get_state_vector()
     robot_pose=np.reshape(operate.ekf.robot.state, (3,))
-    print(robot_pose)
+    # print(robot_pose)
     #robot_pose = [0.0,0.0,0.0] # replace with your calculation
     ####################################################
     return robot_pose
@@ -299,7 +299,7 @@ def get_robot_pose(wheel_vel_lin, wheel_vel_rot, dt):
 # main loop
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Fruit searching")
-    parser.add_argument("--map", type=str, default='M4_prac_map_full.txt') # change to 'M4_true_map_part.txt' for lv2&3
+    parser.add_argument("--map", type=str, default='M4_Lab1_map_full.txt') # change to 'M4_true_map_part.txt' for lv2&3
     parser.add_argument("--ip", metavar='', type=str, default='192.168.50.1')
     parser.add_argument("--port", metavar='', type=int, default=8080)
     #copy over from operate, did not copy save/play data
@@ -327,6 +327,8 @@ if __name__ == "__main__":
     wheel_vel_lin=30
     wheel_vel_rot=30
     dt=0.1
+
+    plot_tree = False
     # The following is only a skeleton code for semi-auto navigation
 
     operate = Operate(args)
@@ -339,13 +341,14 @@ if __name__ == "__main__":
     # enter the waypoints
     #loop to extract current shopping item
     for shop_item in iter(search_list):
-        map_copy=deepcopy(obstacles_tuple)
+        print("\n ------------------------------------------")
+        obstacles_current=deepcopy(obstacles_tuple)
             #search through fruitsmap
         for i in range(len(fruits_list)):
             if fruits_list[i]==shop_item: #have found item we need to shop for
                 endpos=fruits_true_pos_tuple[i]
                 #remove end_pos from map_copy
-                map_copy.pop(i)
+                # obstacles_current.pop(i)
 
         # estimate the robot's pose
         robot_pose = get_robot_pose(wheel_vel_lin, wheel_vel_rot, dt)
@@ -354,31 +357,36 @@ if __name__ == "__main__":
         # goalpos = (1.39, 1.39)
         startpos = (robot_pose[0], robot_pose[1])
 
-        rrt_star_graph = rrt.RRT_star(startpos, endpos, map_copy, n_iter, radius, stepSize, bounds, goal_radius) #map_copy instead of obstacles_tuple
+        rrt_star_graph = rrt.RRT_star(startpos, endpos, obstacles_current, n_iter, radius, stepSize, bounds, goal_radius) #map_copy instead of obstacles_tuple
 
-        fig, ax = plt.subplots()
-        for edge in rrt_star_graph.edges:
-            v1 = rrt_star_graph.vertices[edge[0]]
-            v0 = rrt_star_graph.vertices[edge[1]]
-            ax.plot((v1[0], v0[0]), (v1[1], v0[1]), 'r-')
-        for vertex in rrt_star_graph.vertices:
-            if (vertex == startpos):
-                ax.plot(vertex[0],vertex[1], 'ko') 
-            else: 
-                ax.plot(vertex[0],vertex[1], 'ro')
-        for obstacle in obstacles_tuple: 
-            obstacle_patch = Circle(obstacle, radius)
-            ax.add_patch(obstacle_patch)
-        ax.text(startpos[0], startpos[1], "startpos")
-        ax.plot(endpos[0], endpos[1], "ko")
-        ax.text(endpos[0], endpos[1], "endpos")
+        if plot_tree:
+            fig, ax = plt.subplots()
+            for edge in rrt_star_graph.edges:
+                v1 = rrt_star_graph.vertices[edge[0]]
+                v0 = rrt_star_graph.vertices[edge[1]]
+                ax.plot((v1[0], v0[0]), (v1[1], v0[1]), 'r-')
+            for vertex in rrt_star_graph.vertices:
+                if (vertex == startpos):
+                    ax.plot(vertex[0],vertex[1], 'ko') 
+                else: 
+                    ax.plot(vertex[0],vertex[1], 'ro')
+            goal_patch = Circle(endpos, goal_radius, color='g')
+            ax.add_patch(goal_patch)
+            for obstacle in obstacles_current: 
+                obstacle_patch = Circle(obstacle, radius)
+                ax.add_patch(obstacle_patch)
+            ax.text(startpos[0], startpos[1], "startpos")
+            ax.plot(endpos[0], endpos[1], "ko")
+            ax.text(endpos[0], endpos[1], "endpos")
 
         if rrt_star_graph.success:
             shortest_path= rrt.dijkstra(rrt_star_graph)            
-            for (x0,y0), (x1,y1) in zip(shortest_path[:-1], shortest_path[1:]):
-                ax.plot((x0,x1), (y0,y1),'b-')
-                ax.plot(x0,y0,'bo')
-        plt.show()
+            if plot_tree:
+                for (x0,y0), (x1,y1) in zip(shortest_path[:-1], shortest_path[1:]):
+                    ax.plot((x0,x1), (y0,y1),'b-')
+                    ax.plot(x0,y0,'bo')
+        if plot_tree:
+            plt.show()
 
         # robot drives to the waypoint
         #waypoint =                 
@@ -386,8 +394,10 @@ if __name__ == "__main__":
         for i in range(len(shortest_path)):
             if i==0:
                 continue
-            waypoint = list(shortest_path(i))
+            waypoint = list(shortest_path[i])
+            robot_pose = get_robot_pose(wheel_vel_lin, wheel_vel_rot, dt)
             drive_to_point(waypoint,robot_pose, 0.1)
+            print(f"x: {robot_pose[0]}, y: {robot_pose[1]}")
         
         # robot_pose = get_robot_pose(wheel_vel_lin, wheel_vel_rot, dt)
         # print("Finished driving to waypoint: {}; New robot pose: {}".format(waypoint,robot_pose))
