@@ -108,9 +108,10 @@ def isInWindow(pos, winx, winy, width, height):
 
 class Graph:
     ''' Define graph '''
-    def __init__(self, startpos, endpos):
+    def __init__(self, startpos, endpos, bounds):
         self.startpos = startpos
         self.endpos = endpos
+        self.bounds = bounds
 
         self.vertices = [startpos]
         self.edges = []
@@ -139,12 +140,25 @@ class Graph:
         self.neighbors[idx2].append((idx1, cost))
 
 
-    def randomPosition(self):
+    def randomPosition(self,radius):
         rx = random()
         ry = random()
+        #scale = 5 # added box scale parameter
+        if abs(self.sx / 2) < radius: 
+            posx = self.startpos[0] - (radius) + rx * (2*radius) * 2
+        else:
+            posx = self.startpos[0] - (self.sx / 2.) + rx * self.sx * 2
+            
+        if abs(self.sy /2 ) < radius: 
+            posy = self.startpos[1] - (radius) + ry * (2*radius) * 2
+        else: 
+            posy = self.startpos[1] - (self.sy / 2.) + ry * self.sy * 2
+             
+        # #random point within the bounds 
+        # xmin, xmax, ymin, ymax = self.bounds
+        # posx = xmin*rx + xmax*rx
+        # posy = ymin*rx + ymax*rx
 
-        posx = self.startpos[0] - (self.sx / 2.) + rx * self.sx * 2
-        posy = self.startpos[1] - (self.sy / 2.) + ry * self.sy * 2
         return posx, posy
 
 
@@ -153,15 +167,15 @@ def RRT(startpos, endpos, obstacles, n_iter, radius, stepSize):
     G = Graph(startpos, endpos)
 
     for _ in range(n_iter):
-        randvex = G.randomPosition()
+        randvex = G.randomPosition(radius)
         if isInObstacle(randvex, obstacles, radius):
             continue
 
         nearvex, nearidx = nearest(G, randvex, obstacles, radius)
         if nearvex is None:
             continue
-        elif distance(nearvex, endpos) < radius:
-            continue
+        # elif distance(nearvex, endpos) < radius: #commenting out the modified code
+        #     continue 
 
         newvex = newVertex(randvex, nearvex, stepSize)
 
@@ -178,9 +192,9 @@ def RRT(startpos, endpos, obstacles, n_iter, radius, stepSize):
             # break
     return G
 
-def in_bounds(vex_coords, bounds):
+def in_bounds(self,vex_coords):
     x, y = vex_coords
-    xmin, xmax, ymin, ymax = bounds
+    xmin, xmax, ymin, ymax = self.bounds
     if x > xmin and x < xmax and y > ymin and y < ymax:
         return True
     return False
@@ -201,11 +215,11 @@ def RRT_star(startpos, endpos, obstacles, n_iter, radius, stepSize, bounds, goal
     Returns:
         _type_: _description_
     """
-    G = Graph(startpos, endpos)
+    G = Graph(startpos, endpos, bounds)
 
     for _ in range(n_iter):
-        randvex = G.randomPosition()
-        if isInObstacle(randvex, obstacles, radius) or not in_bounds(randvex, bounds):
+        randvex = G.randomPosition(radius) #added bounds to random position 
+        if isInObstacle(randvex, obstacles, radius) or not in_bounds(G, randvex):
             continue
 
         nearvex, nearidx = nearest(G, randvex, obstacles, radius)
@@ -239,13 +253,12 @@ def RRT_star(startpos, endpos, obstacles, n_iter, radius, stepSize, bounds, goal
 
         dist = distance(newvex, G.endpos)
         if dist < goal_radius:
-            # endidx = G.add_vex(G.endpos)
-            # G.add_edge(newidx, endidx, dist)
-            # try:
-            #     G.distances[endidx] = min(G.distances[endidx], G.distances[newidx]+dist)
-            # except:
-                # G.distances[endidx] = G.distances[newidx]+dist
-            G.true_goal = newvex
+            endidx = G.add_vex(G.endpos)
+            G.add_edge(newidx, endidx, dist)
+            try:
+                G.distances[endidx] = min(G.distances[endidx], G.distances[newidx]+dist)
+            except:
+                G.distances[endidx] = G.distances[newidx]+dist
             G.success = True
             #print('success')
             # break
@@ -258,8 +271,7 @@ def dijkstra(G):
     Dijkstra algorithm for finding shortest path from start position to end.
     '''
     srcIdx = G.vex2idx[G.startpos]
-    dstIdx = G.vex2idx[G.true_goal]
-    # dstIdx = G.vex2idx[G.endpos]
+    dstIdx = G.vex2idx[G.endpos]
 
     # build dijkstra
     nodes = list(G.neighbors.keys())
@@ -320,8 +332,8 @@ def plot(G, obstacles, radius, path=None):
     plt.show()
 
 
-def pathSearch(startpos, endpos, obstacles, n_iter, radius, stepSize):
-    G = RRT_star(startpos, endpos, obstacles, n_iter, radius, stepSize)
+def pathSearch(startpos, endpos, obstacles, n_iter, radius, stepSize, bounds, goal_radius):
+    G = RRT_star(startpos, endpos, obstacles, n_iter, radius, stepSize,bounds,goal_radius)
     if G.success:
         path = dijkstra(G)
         # plot(G, obstacles, radius, path)

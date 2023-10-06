@@ -19,8 +19,8 @@ class Robot:
 
         # Compute the linear and angular velocity
         linear_velocity, angular_velocity = self.convert_wheel_speeds(drive_meas.left_speed, drive_meas.right_speed)
-        print(f"drive lin_vel: {linear_velocity}")
-        print(f"drive ang_vel: {angular_velocity}")
+        #print(f"drive lin_vel: {linear_velocity}")
+        #print(f"drive ang_vel: {angular_velocity}")
 
         # Apply the velocities
         dt = drive_meas.dt

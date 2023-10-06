@@ -26,6 +26,7 @@ from random import random
 import matplotlib.pyplot as plt
 from matplotlib import collections  as mc
 from matplotlib.patches import Circle
+import matplotlib.animation as animation 
 from collections import deque
 
 # import utility functions
@@ -69,8 +70,8 @@ def read_true_map(fname):
 
         # remove unique id of targets of the same type
         for key in gt_dict:
-            x = np.round(gt_dict[key]['x'], 1)
-            y = np.round(gt_dict[key]['y'], 1)
+            x = gt_dict[key]['x'] #REMOVED np.round
+            y = gt_dict[key]['y']
 
             if key.startswith('aruco'):
                 if key.startswith('aruco10'):
@@ -81,7 +82,7 @@ def read_true_map(fname):
                     aruco_true_pos[marker_id][0] = x
                     aruco_true_pos[marker_id][1] = y
             else:
-                fruit_list.append(key[:-2])
+                fruit_list.append(key) #REMOVED [:-2] in append(key[:-2])
                 if len(fruit_true_pos) == 0:
                     fruit_true_pos = np.array([[x, y]])
                 else:
@@ -96,7 +97,7 @@ def read_search_list():
     @return: search order of the target fruits
     """
     search_list = []
-    with open('M4_Lab1_shopping_list.txt', 'r') as fd:
+    with open('search_list.txt', 'r') as fd:
         fruits = fd.readlines()
 
         for fruit in fruits:
@@ -186,9 +187,6 @@ def drive_to_point(waypoint, robot_pose,dt):
     drive_meas = measure.Drive(lv, -rv, drive_time)
     
     operate.update_slam(drive_meas)
-    print("Arrived at [{}, {}]".format(waypoint[0], waypoint[1]))
-
-
     
     # operate.pibot.set_velocity(command, 0, 0, time=drive_time)   
     # ####################################################
@@ -299,7 +297,7 @@ def get_robot_pose(wheel_vel_lin, wheel_vel_rot, dt):
 # main loop
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Fruit searching")
-    parser.add_argument("--map", type=str, default='M4_Lab1_map_full.txt') # change to 'M4_true_map_part.txt' for lv2&3
+    parser.add_argument("--map", type=str, default='ryanhouse_full.txt') # change to 'M4_true_map_part.txt' for lv2&3
     parser.add_argument("--ip", metavar='', type=str, default='192.168.50.1')
     parser.add_argument("--port", metavar='', type=int, default=8080)
     #copy over from operate, did not copy save/play data
@@ -318,17 +316,17 @@ if __name__ == "__main__":
     fruits_true_pos_tuple = [tuple(array) for array in fruits_true_pos]  
     aruco_true_pos_tuple = [tuple(array) for array in aruco_true_pos]
     obstacles_tuple = fruits_true_pos_tuple+aruco_true_pos_tuple
-    n_iter=100 #make sure not too long
-    radius=0.13 #for clearance of obsticals
-    stepSize= 0.5 #need large stepsize
+    n_iter=200 #make sure not too long
+    radius=0.25 #for clearance of obsticals. Large radius because penguin Pi itself is large, 
+    stepSize= 0.7 #need large stepsize
     bounds = (-1.4, 1.4, -1.4, 1.4)
-    goal_radius = 0.45
+    goal_radius = 0.45 #marginally less than 0.5m so that robot is fully within the goal. 
 
     wheel_vel_lin=30
     wheel_vel_rot=30
     dt=0.1
 
-    plot_tree = False
+    plot_tree = True
     # The following is only a skeleton code for semi-auto navigation
 
     operate = Operate(args)
@@ -336,6 +334,11 @@ if __name__ == "__main__":
 
     #start_pos always at origin
     startpos=(0,0)
+
+
+    #Initialise comparison of waypoints lists 
+    drove_to_waypoints = []
+    actual_waypoints = []
 
     # while True:
     # enter the waypoints
@@ -349,6 +352,7 @@ if __name__ == "__main__":
                 endpos=fruits_true_pos_tuple[i]
                 #remove end_pos from map_copy
                 # obstacles_current.pop(i)
+
 
         # estimate the robot's pose
         robot_pose = get_robot_pose(wheel_vel_lin, wheel_vel_rot, dt)
@@ -379,25 +383,58 @@ if __name__ == "__main__":
             ax.plot(endpos[0], endpos[1], "ko")
             ax.text(endpos[0], endpos[1], "endpos")
 
+        #debugging box thing 
+
+
         if rrt_star_graph.success:
-            shortest_path= rrt.dijkstra(rrt_star_graph)            
+            #do not include last element in shortest path as that is the endpos (not offset)
+            shortest_path= (rrt.dijkstra(rrt_star_graph))[:-1]
+            actual_waypoints.append(shortest_path)        
             if plot_tree:
                 for (x0,y0), (x1,y1) in zip(shortest_path[:-1], shortest_path[1:]):
                     ax.plot((x0,x1), (y0,y1),'b-')
+                for (x0,y0) in shortest_path:
                     ax.plot(x0,y0,'bo')
-        if plot_tree:
-            plt.show()
+                    ax.text(x0, y0, f'({x0:.2f}, {y0:.2f})', ha='right', va='bottom', color='blue')
+                   
 
         # robot drives to the waypoint
         #waypoint =                 
         # waypoint = endpos
+        #will be [0,0,0] to start with 
+        robot_pose = get_robot_pose(wheel_vel_lin, wheel_vel_rot, dt)
+        print(f"x: {robot_pose[0]}, y: {robot_pose[1]}") 
+        robot_path = [(robot_pose[0], robot_pose[1])]
         for i in range(len(shortest_path)):
             if i==0:
                 continue
             waypoint = list(shortest_path[i])
-            robot_pose = get_robot_pose(wheel_vel_lin, wheel_vel_rot, dt)
             drive_to_point(waypoint,robot_pose, 0.1)
+            robot_pose = get_robot_pose(wheel_vel_lin, wheel_vel_rot, dt)
+            robot_path.append((robot_pose[0],robot_pose[1]))
+            #print robot pose after driving to a new point
             print(f"x: {robot_pose[0]}, y: {robot_pose[1]}")
+            #if we are at the last waypoint 
+            if i == (len(shortest_path)-1):
+                #if we are in the goal radius 
+                if get_distance_robot_to_goal(robot_pose.T,(np.array(endpos)).T)<goal_radius: 
+                    print(f"{shop_item} goal reached")
+                    
+                 
+        actual_waypoints.append(robot_path)
+
+        #add the actual robot path driven on the plot 
+        print(robot_path)
+        if plot_tree:
+            for (x0,y0), (x1,y1) in zip(robot_path[:-1], robot_path[1:]):
+                ax.plot((x0,x1), (y0,y1),'g-')
+            for (x0,y0) in robot_path:
+                ax.plot(x0,y0,'go')
+                ax.text(x0, y0, f'({x0:.2f}, {y0:.2f})', ha='right', va='bottom', color='green')
+
+        if plot_tree:
+            plt.show()        
+             
         
         # robot_pose = get_robot_pose(wheel_vel_lin, wheel_vel_rot, dt)
         # print("Finished driving to waypoint: {}; New robot pose: {}".format(waypoint,robot_pose))
