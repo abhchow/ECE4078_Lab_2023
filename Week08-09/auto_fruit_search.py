@@ -82,7 +82,7 @@ def read_true_map(fname):
                     aruco_true_pos[marker_id][0] = x
                     aruco_true_pos[marker_id][1] = y
             else:
-                fruit_list.append(key) #REMOVED [:-2] in append(key[:-2])
+                fruit_list.append(key[:-2]) #REMOVED [:-2] in append(key[:-2])
                 if len(fruit_true_pos) == 0:
                     fruit_true_pos = np.array([[x, y]])
                 else:
@@ -297,7 +297,7 @@ def get_robot_pose(wheel_vel_lin, wheel_vel_rot, dt):
 # main loop
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Fruit searching")
-    parser.add_argument("--map", type=str, default='ryanhouse_full.txt') # change to 'M4_true_map_part.txt' for lv2&3
+    parser.add_argument("--map", type=str, default='sat203_full.txt') # change to 'M4_true_map_part.txt' for lv2&3
     parser.add_argument("--ip", metavar='', type=str, default='192.168.50.1')
     parser.add_argument("--port", metavar='', type=int, default=8080)
     #copy over from operate, did not copy save/play data
