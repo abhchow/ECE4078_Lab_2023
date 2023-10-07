@@ -207,6 +207,18 @@ def waypoint_arrived(waypoint, robot_pose):
     else:
          return False
     
+def update_command(drive_forward=False, drive_backward=False, turn_left=False, turn_right=False, stop=False):
+    if drive_forward: 
+        operate.command['motion'][0] = [-1,0]
+    elif drive_backward: 
+        operate.command['motion'][0] = [1,0]
+    elif turn_left: 
+        operate.command['motion'][1] = [0,1]
+    elif turn_right: 
+        operate.command['motion'][1] = [0,-1]
+    elif stop:
+        operate.command['motion'] = [0, 0]
+    return
           
 def controller(initial_state, goal_position):
     #states=[x,y,theta]
@@ -384,7 +396,8 @@ if __name__ == "__main__":
         for waypoint in rrt_star_graph.vertices:
              while not orientation_arrived(waypoint, robot_pose): #returns boolean
                 operate.take_pic()
-                #drive_meas = operate.control() 
+                update_command(turn_left=True) #fix mb
+                drive_meas = operate.control() 
                 operate.update_slam(drive_meas)
                 #operate.record_data()
                 #operate.save_image()
@@ -392,6 +405,7 @@ if __name__ == "__main__":
                 robot_pose=get_robot_pose()
              while not waypoint_arrived(waypoint, robot_pose):
                 operate.take_pic()
+                update_command(drive_forward=True)
                 drive_meas = operate.control()
                 operate.update_slam(drive_meas)
                 #operate.record_data()
