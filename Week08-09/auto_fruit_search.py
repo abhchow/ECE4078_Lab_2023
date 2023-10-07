@@ -192,6 +192,22 @@ def drive_to_point(waypoint, robot_pose,dt):
     # ####################################################
     return 
 
+def orientation_arrived(waypoint, robot_pose):
+     angle_diff = robot_pose[2] - np.arctan2(waypoint[1]-robot_pose[1], waypoint[0]-robot_pose[0])
+     threshold=0.01
+     if angle_diff<threshold:
+         return True
+     else:
+         return False
+
+def waypoint_arrived(waypoint, robot_pose):
+    threshold=0.1
+    if get_distance_robot_to_goal(robot_pose.T,(np.array(waypoint)).T)<threshold: 
+         return True
+    else:
+         return False
+    
+          
 def controller(initial_state, goal_position):
     #states=[x,y,theta]
     ########add control
@@ -271,7 +287,7 @@ def get_angle_robot_to_goal(robot_state=np.zeros(3), goal=np.zeros(3)):
 
 	return alpha
 
-def get_robot_pose(wheel_vel_lin, wheel_vel_rot, dt):
+def get_robot_pose():
     ####################################################
     # TODO: replace with your codes to estimate the pose of the robot
     
@@ -362,80 +378,104 @@ if __name__ == "__main__":
         startpos = (robot_pose[0], robot_pose[1])
 
         rrt_star_graph = rrt.RRT_star(startpos, endpos, obstacles_current, n_iter, radius, stepSize, bounds, goal_radius) #map_copy instead of obstacles_tuple
+        wheel_vel_lin = 30 # tick/s
+        wheel_vel_rot = 15
+        
+        for waypoint in rrt_star_graph.vertices:
+             while not orientation_arrived(waypoint, robot_pose): #returns boolean
+                operate.take_pic()
+                #drive_meas = operate.control() 
+                operate.update_slam(drive_meas)
+                #operate.record_data()
+                #operate.save_image()
+                #operate.detect_target() #Yolo only
+                robot_pose=get_robot_pose()
+             while not waypoint_arrived(waypoint, robot_pose):
+                operate.take_pic()
+                drive_meas = operate.control()
+                operate.update_slam(drive_meas)
+                #operate.record_data()
+                #operate.save_image()
+                #operate.detect_target() #Yolo only
+                robot_pose=get_robot_pose()
+            
+             
 
-        if plot_tree:
-            fig, ax = plt.subplots()
-            for edge in rrt_star_graph.edges:
-                v1 = rrt_star_graph.vertices[edge[0]]
-                v0 = rrt_star_graph.vertices[edge[1]]
-                ax.plot((v1[0], v0[0]), (v1[1], v0[1]), 'r-')
-            for vertex in rrt_star_graph.vertices:
-                if (vertex == startpos):
-                    ax.plot(vertex[0],vertex[1], 'ko') 
-                else: 
-                    ax.plot(vertex[0],vertex[1], 'ro')
-            goal_patch = Circle(endpos, goal_radius, color='g')
-            ax.add_patch(goal_patch)
-            for obstacle in obstacles_current: 
-                obstacle_patch = Circle(obstacle, radius)
-                ax.add_patch(obstacle_patch)
-            ax.text(startpos[0], startpos[1], "startpos")
-            ax.plot(endpos[0], endpos[1], "ko")
-            ax.text(endpos[0], endpos[1], "endpos")
+        # if plot_tree:
+        #     fig, ax = plt.subplots()
+        #     for edge in rrt_star_graph.edges:
+        #         v1 = rrt_star_graph.vertices[edge[0]]
+        #         v0 = rrt_star_graph.vertices[edge[1]]
+        #         ax.plot((v1[0], v0[0]), (v1[1], v0[1]), 'r-')
+        #     for vertex in rrt_star_graph.vertices:
+        #         if (vertex == startpos):
+        #             ax.plot(vertex[0],vertex[1], 'ko') 
+        #         else: 
+        #             ax.plot(vertex[0],vertex[1], 'ro')
+        #     goal_patch = Circle(endpos, goal_radius, color='g')
+        #     ax.add_patch(goal_patch)
+        #     for obstacle in obstacles_current: 
+        #         obstacle_patch = Circle(obstacle, radius)
+        #         ax.add_patch(obstacle_patch)
+        #     ax.text(startpos[0], startpos[1], "startpos")
+        #     ax.plot(endpos[0], endpos[1], "ko")
+        #     ax.text(endpos[0], endpos[1], "endpos")
 
-        #debugging box thing 
+        # #debugging box thing 
 
 
-        if rrt_star_graph.success:
-            #do not include last element in shortest path as that is the endpos (not offset)
-            shortest_path= (rrt.dijkstra(rrt_star_graph))[:-1]
-            actual_waypoints.append(shortest_path)        
-            if plot_tree:
-                for (x0,y0), (x1,y1) in zip(shortest_path[:-1], shortest_path[1:]):
-                    ax.plot((x0,x1), (y0,y1),'b-')
-                for (x0,y0) in shortest_path:
-                    ax.plot(x0,y0,'bo')
-                    ax.text(x0, y0, f'({x0:.2f}, {y0:.2f})', ha='right', va='bottom', color='blue')
+        # if rrt_star_graph.success:
+        #     #do not include last element in shortest path as that is the endpos (not offset)
+        #     shortest_path= (rrt.dijkstra(rrt_star_graph))[:-1]
+        #     actual_waypoints.append(shortest_path)        
+        #     if plot_tree:
+        #         for (x0,y0), (x1,y1) in zip(shortest_path[:-1], shortest_path[1:]):
+        #             ax.plot((x0,x1), (y0,y1),'b-')
+        #         for (x0,y0) in shortest_path:
+        #             ax.plot(x0,y0,'bo')
+        #             ax.text(x0, y0, f'({x0:.2f}, {y0:.2f})', ha='right', va='bottom', color='blue')
                    
 
-        # robot drives to the waypoint
-        #waypoint =                 
-        # waypoint = endpos
-        #will be [0,0,0] to start with 
-        robot_pose = get_robot_pose(wheel_vel_lin, wheel_vel_rot, dt)
-        print(f"x: {robot_pose[0]}, y: {robot_pose[1]}") 
-        robot_path = [(robot_pose[0], robot_pose[1])]
-        for i in range(len(shortest_path)):
-            if i==0:
-                continue
-            waypoint = list(shortest_path[i])
-            drive_to_point(waypoint,robot_pose, 0.1)
-            robot_pose = get_robot_pose(wheel_vel_lin, wheel_vel_rot, dt)
-            robot_path.append((robot_pose[0],robot_pose[1]))
-            #print robot pose after driving to a new point
-            print(f"x: {robot_pose[0]}, y: {robot_pose[1]}")
-            #if we are at the last waypoint 
-            if i == (len(shortest_path)-1):
-                #if we are in the goal radius 
-                if get_distance_robot_to_goal(robot_pose.T,(np.array(endpos)).T)<goal_radius: 
-                    print(f"{shop_item} goal reached")
+        # # robot drives to the waypoint
+        # #waypoint =                 
+        # # waypoint = endpos
+        # #will be [0,0,0] to start with 
+        # robot_pose = get_robot_pose(wheel_vel_lin, wheel_vel_rot, dt)
+        # print(f"x: {robot_pose[0]}, y: {robot_pose[1]}") 
+        # robot_path = [(robot_pose[0], robot_pose[1])]
+        # for i in range(len(shortest_path)):
+        #     if i==0:
+        #         continue
+        #     waypoint = list(shortest_path[i])
+        #     drive_to_point(waypoint,robot_pose, 0.1)
+        #     robot_pose = get_robot_pose(wheel_vel_lin, wheel_vel_rot, dt)
+        #     robot_path.append((robot_pose[0],robot_pose[1]))
+        #     #print robot pose after driving to a new point
+        #     print(f"x: {robot_pose[0]}, y: {robot_pose[1]}")
+        #     #if we are at the last waypoint 
+        #     if i == (len(shortest_path)-1):
+        #         #if we are in the goal radius 
+        #         if get_distance_robot_to_goal(robot_pose.T,(np.array(endpos)).T)<goal_radius: 
+        #             print(f"{shop_item} goal reached")
                     
                  
-        actual_waypoints.append(robot_path)
+        # actual_waypoints.append(robot_path)
 
-        #add the actual robot path driven on the plot 
-        print(robot_path)
-        if plot_tree:
-            for (x0,y0), (x1,y1) in zip(robot_path[:-1], robot_path[1:]):
-                ax.plot((x0,x1), (y0,y1),'g-')
-            for (x0,y0) in robot_path:
-                ax.plot(x0,y0,'go')
-                ax.text(x0, y0, f'({x0:.2f}, {y0:.2f})', ha='right', va='bottom', color='green')
+        # #add the actual robot path driven on the plot 
+        # print(robot_path)
+        # if plot_tree:
+        #     for (x0,y0), (x1,y1) in zip(robot_path[:-1], robot_path[1:]):
+        #         ax.plot((x0,x1), (y0,y1),'g-')
+        #     for (x0,y0) in robot_path:
+        #         ax.plot(x0,y0,'go')
+        #         ax.text(x0, y0, f'({x0:.2f}, {y0:.2f})', ha='right', va='bottom', color='green')
 
-        if plot_tree:
-            plt.show()        
+        # if plot_tree:
+        #     plt.show()        
              
-        
+        ##########starting l3
+
+
         # robot_pose = get_robot_pose(wheel_vel_lin, wheel_vel_rot, dt)
         # print("Finished driving to waypoint: {}; New robot pose: {}".format(waypoint,robot_pose))
         # startpos=(robot_pose[0], robot_pose[1])
