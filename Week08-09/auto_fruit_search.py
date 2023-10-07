@@ -44,12 +44,13 @@ def clamp_angle(rad_angle=0, min_value=-np.pi, max_value=np.pi):
 	:param min_value: min angle value
 	:param max_value: max angle value
 	"""
-
+	# print(f"preclamped: {rad_angle}")
 	if min_value > 0:
 		min_value *= -1
-
+	
 	angle = (rad_angle + max_value) % (2 * np.pi) + min_value
-
+	
+	# print(f"clamped: {angle}")
 	return angle
 
 
@@ -193,16 +194,19 @@ def drive_to_point(waypoint, robot_pose,dt):
     return 
 
 def orientation_arrived(waypoint, robot_pose):
-     angle_diff = robot_pose[2] - np.arctan2(waypoint[1]-robot_pose[1], waypoint[0]-robot_pose[0])
-     threshold=0.01
-     if angle_diff<threshold:
+     angle_diff = get_angle_robot_to_goal(robot_pose.T,(np.array(waypoint)).T)
+     threshold=0.20
+     print(f'angle from goal = {angle_diff}')
+     if abs(angle_diff)<threshold:
          return True
      else:
          return False
 
 def waypoint_arrived(waypoint, robot_pose):
-    threshold=0.1
-    if get_distance_robot_to_goal(robot_pose.T,(np.array(waypoint)).T)<threshold: 
+    dist_from_waypoint = get_distance_robot_to_goal(robot_pose.T,(np.array(waypoint)).T)
+    threshold=0.16
+    print(dist_from_waypoint)
+    if dist_from_waypoint<threshold: 
          return True
     else:
          return False
@@ -286,7 +290,6 @@ def get_angle_robot_to_goal(robot_state=np.zeros(3), goal=np.zeros(3)):
 	:param robot_state: 3D vector (x, y, theta) representing the current state of the robot
 	:param goal: 3D Cartesian coordinates of goal location
 	"""
-
 	if goal.shape[0] < 3:
 		goal = np.hstack((goal, np.array([0])))
 
@@ -295,7 +298,9 @@ def get_angle_robot_to_goal(robot_state=np.zeros(3), goal=np.zeros(3)):
 	x_diff = x_goal - x
 	y_diff = y_goal - y
 
+
 	alpha = clamp_angle(np.arctan2(y_diff, x_diff) - theta)
+
 
 	return alpha
 
@@ -320,6 +325,21 @@ def get_robot_pose():
     #robot_pose = [0.0,0.0,0.0] # replace with your calculation
     ####################################################
     return robot_pose
+
+
+def update_command(drive_forward=False, drive_backward=False, turn_left=False, turn_right=False, stop=False):
+    if drive_forward: 
+        operate.command['motion'] = [1,0]
+    elif drive_backward: 
+        operate.command['motion'] = [-1,0]
+    elif turn_left: 
+        operate.command['motion'] = [0,1]
+    elif turn_right: 
+        operate.command['motion'] = [0,-1]
+    elif stop:
+        operate.command['motion'] = [0, 0]
+    return 
+
 
 
 # main loop
@@ -383,7 +403,7 @@ if __name__ == "__main__":
 
 
         # estimate the robot's pose
-        robot_pose = get_robot_pose(wheel_vel_lin, wheel_vel_rot, dt)
+        robot_pose = get_robot_pose()
 
         #add pathplanning
         # goalpos = (1.39, 1.39)
@@ -392,17 +412,60 @@ if __name__ == "__main__":
         rrt_star_graph = rrt.RRT_star(startpos, endpos, obstacles_current, n_iter, radius, stepSize, bounds, goal_radius) #map_copy instead of obstacles_tuple
         wheel_vel_lin = 30 # tick/s
         wheel_vel_rot = 15
+
+        if plot_tree:
+            fig, ax = plt.subplots()
+            for edge in rrt_star_graph.edges:
+                v1 = rrt_star_graph.vertices[edge[0]]
+                v0 = rrt_star_graph.vertices[edge[1]]
+                ax.plot((v1[0], v0[0]), (v1[1], v0[1]), 'r-')
+            for vertex in rrt_star_graph.vertices:
+                if (vertex == startpos):
+                    ax.plot(vertex[0],vertex[1], 'ko') 
+                else: 
+                    ax.plot(vertex[0],vertex[1], 'ro')
+            goal_patch = Circle(endpos, goal_radius, color='g')
+            ax.add_patch(goal_patch)
+            for obstacle in obstacles_current: 
+                obstacle_patch = Circle(obstacle, radius)
+                ax.add_patch(obstacle_patch)
+            ax.text(startpos[0], startpos[1], "startpos")
+            ax.plot(endpos[0], endpos[1], "ko")
+            ax.text(endpos[0], endpos[1], "endpos")
+
+        #debugging box thing 
+
+
+        if rrt_star_graph.success:
+            #do not include last element in shortest path as that is the endpos (not offset)
+            shortest_path= (rrt.dijkstra(rrt_star_graph))[:-1]
+            actual_waypoints.append(shortest_path)        
+            if plot_tree:
+                for (x0,y0), (x1,y1) in zip(shortest_path[:-1], shortest_path[1:]):
+                    ax.plot((x0,x1), (y0,y1),'b-')
+                for (x0,y0) in shortest_path:
+                    ax.plot(x0,y0,'bo')
+                    ax.text(x0, y0, f'({x0:.2f}, {y0:.2f})', ha='right', va='bottom', color='blue')
         
-        for waypoint in rrt_star_graph.vertices:
+        for waypoint in rrt_star_graph.vertices[1:]:
              while not orientation_arrived(waypoint, robot_pose): #returns boolean
+                print(f'theta = {get_robot_pose()[2]}')
+
                 operate.take_pic()
-                update_command(turn_left=True) #fix mb
+                angle_diff = get_angle_robot_to_goal(robot_pose.T,(np.array(waypoint)).T)
+                if angle_diff>0: 
+                    #turn left
+                    update_command(turn_left=True) #fix mb
+                else:
+                    #turn right
+                    update_command(turn_right=True)
                 drive_meas = operate.control() 
                 operate.update_slam(drive_meas)
                 #operate.record_data()
                 #operate.save_image()
                 #operate.detect_target() #Yolo only
                 robot_pose=get_robot_pose()
+             print("Arrived at Angle")
              while not waypoint_arrived(waypoint, robot_pose):
                 operate.take_pic()
                 update_command(drive_forward=True)
@@ -412,42 +475,12 @@ if __name__ == "__main__":
                 #operate.save_image()
                 #operate.detect_target() #Yolo only
                 robot_pose=get_robot_pose()
+             update_command(stop=True)
+             print("Arrived at a waypoint")
             
              
 
-        # if plot_tree:
-        #     fig, ax = plt.subplots()
-        #     for edge in rrt_star_graph.edges:
-        #         v1 = rrt_star_graph.vertices[edge[0]]
-        #         v0 = rrt_star_graph.vertices[edge[1]]
-        #         ax.plot((v1[0], v0[0]), (v1[1], v0[1]), 'r-')
-        #     for vertex in rrt_star_graph.vertices:
-        #         if (vertex == startpos):
-        #             ax.plot(vertex[0],vertex[1], 'ko') 
-        #         else: 
-        #             ax.plot(vertex[0],vertex[1], 'ro')
-        #     goal_patch = Circle(endpos, goal_radius, color='g')
-        #     ax.add_patch(goal_patch)
-        #     for obstacle in obstacles_current: 
-        #         obstacle_patch = Circle(obstacle, radius)
-        #         ax.add_patch(obstacle_patch)
-        #     ax.text(startpos[0], startpos[1], "startpos")
-        #     ax.plot(endpos[0], endpos[1], "ko")
-        #     ax.text(endpos[0], endpos[1], "endpos")
-
-        # #debugging box thing 
-
-
-        # if rrt_star_graph.success:
-        #     #do not include last element in shortest path as that is the endpos (not offset)
-        #     shortest_path= (rrt.dijkstra(rrt_star_graph))[:-1]
-        #     actual_waypoints.append(shortest_path)        
-        #     if plot_tree:
-        #         for (x0,y0), (x1,y1) in zip(shortest_path[:-1], shortest_path[1:]):
-        #             ax.plot((x0,x1), (y0,y1),'b-')
-        #         for (x0,y0) in shortest_path:
-        #             ax.plot(x0,y0,'bo')
-        #             ax.text(x0, y0, f'({x0:.2f}, {y0:.2f})', ha='right', va='bottom', color='blue')
+    
                    
 
         # # robot drives to the waypoint
