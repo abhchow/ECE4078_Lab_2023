@@ -196,7 +196,7 @@ def drive_to_point(waypoint, robot_pose,dt):
 def angle_mav_from_waypoint(waypoint, robot_pose, angle_mov_ave):
      #angle_diff = get_angle_robot_to_goal(robot_pose.T,(np.array(waypoint)).T)
      angle_diff = clamp_angle(np.arctan2(waypoint[1]-robot_pose[1], waypoint[0]-robot_pose[0])-robot_pose[2])
-     threshold=0.05
+     threshold=0.01
      if abs(angle_diff)<threshold or abs(angle_diff)> np.mean(abs(angle_mov_ave)):
          return True, angle_mov_ave
      else:
@@ -208,7 +208,7 @@ def distance_from_waypoint(waypoint, robot_pose, dist_min):
     #dist min= array of floats
     dist_from_waypoint = get_distance_robot_to_goal(robot_pose.T,(np.array(waypoint)).T)
     #need to change min dist to be array of updward trend
-    threshold=0.05
+    threshold=0.01
     if dist_from_waypoint<threshold or dist_from_waypoint> np.mean(dist_min):
          return True, dist_min #distmin no loner used
     else:
@@ -430,10 +430,10 @@ if __name__ == "__main__":
     aruco_true_pos_tuple = [tuple(array) for array in aruco_true_pos]
     obstacles_tuple = fruits_true_pos_tuple+aruco_true_pos_tuple
     n_iter=400 #make sure not too long
-    radius=0.25 #for clearance of obsticals. Large radius because penguin Pi itself is large, 
+    radius=0.30 #for clearance of obsticals. Large radius because penguin Pi itself is large, 
     stepSize= 0.7 #need large stepsize
     bounds = (-1.4, 1.4, -1.4, 1.4)
-    goal_radius = 0.45 #marginally less than 0.5m so that robot is fully within the goal. 
+    goal_radius = 0.40 #marginally less than 0.5m so that robot is fully within the goal. 
 
 
     plot_tree = True
@@ -503,6 +503,8 @@ if __name__ == "__main__":
                     update_command(drive_forward=True)
                     drive_meas = operate.control()
                     operate.update_slam(drive_meas)
+                    #scan for fruit while driving forward
+                    operate.detect_target() 
                     robot_pose=get_robot_pose()
                     [waypoint_arrived,dist_min]=distance_from_waypoint(waypoint, robot_pose, dist_min)
                     print(f'robot pos is {robot_pose[0],robot_pose[1], clamp_angle(robot_pose[2])*180/np.pi} --- Driving Fwd')
