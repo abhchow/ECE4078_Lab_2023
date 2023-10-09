@@ -39,6 +39,9 @@ def Intersection(line, center, radius):
         return False
 
     return True
+# def checkIntersectionWithLine(line1,line2):
+
+
 
 
 
@@ -59,6 +62,14 @@ def isThruObstacle(line, obstacles, radius):
             return True
     return False
 
+# def isThruBounds(line,G):
+#     xmin, xmax, ymin, ymax = G.bounds
+#     line_left = Line((xmin,ymin),(xmin,ymax))
+#     line_right = Line((xmin,ymin),(xmax,ymax))
+#     line_top = Line((xmin,ymax),(xmax,ymax))
+#     line_bottom = Line((xmin,ymin),(xmax,ymin))
+#     checkIntersectionWithLine(line,line_left)
+    
 
 def nearest(G, vex, obstacles, radius):
     Nvex = None
@@ -219,6 +230,8 @@ def RRT_star(startpos, endpos, obstacles, n_iter, radius, stepSize, bounds, goal
 
     for _ in range(n_iter):
         randvex = G.randomPosition(radius) #added bounds to random position 
+        
+        # if isInObstacle(randvex, obstacles, radius):
         if isInObstacle(randvex, obstacles, radius) or not in_bounds(G, randvex):
             continue
 
@@ -243,6 +256,7 @@ def RRT_star(startpos, endpos, obstacles, n_iter, radius, stepSize, bounds, goal
                 continue
 
             line = Line(vex, newvex)
+            # if isThruObstacle(line, obstacles, radius) or isThruBounds(line,G):
             if isThruObstacle(line, obstacles, radius):
                 continue
 

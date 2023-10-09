@@ -505,7 +505,19 @@ if __name__ == "__main__":
              update_command(stop=True)
              print(f"Arrived at a waypoint: {waypoint}")
              print(f'robot pos is {robot_pose[0],robot_pose[1], robot_pose[2]*180/np.pi} --- AT WAYPOINT')
-        print(f"Arrived at {shop_item}")   
+        print(f"Arrived at {shop_item}")  
+        print(f"Relocalizing...")
+        # turn_angle = 2*np.pi() 
+        # curent_angle = robot_pose[2]
+        # angle_diff = turn_angle - robot_pose[2] 
+        # while angle_diff > 0: 
+        #     update_command(turn_left=True) LOCALIZATION 
+        #     drive_meas = operate.control()
+        #     operate.update_slam(drive_meas)
+        #     robot_pose = get_robot_pose() 
+        #     angle_diff = angle_diff - 
+
+
              
 
     
