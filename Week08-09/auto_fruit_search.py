@@ -358,7 +358,7 @@ def find_path(startpos, endpos, obstacles_current, n_iter, radius, stepSize, bou
     shortest_path = (rrt.dijkstra(rrt_star_graph))[:-1]
     return rrt_star_graph, shortest_path
 
-def marker_close(operate, distance_threshold):
+def marker_close(operate, distance_threshold=65):
     corners, ids, rejected = cv2.aruco.detectMarkers(operate.img, operate.aruco_det.aruco_dict, parameters=operate.aruco_det.aruco_params)
     if len(corners) != 0: 
         for box in corners[0]:
@@ -407,6 +407,63 @@ def print_path(rrt_star_graph, shortest_path, fig_name):
         ax.text(x0, y0, f'({x0:.2f}, {y0:.2f})', ha='right', va='bottom', color='blue')
     plt.savefig(f"./graphs/rrt_graph_{str(fig_name)}.png")
 
+def drive_to_target(operate, target): 
+    #long winded way to get target values in case more fruits pop up in the detected box labels (even due to background)
+    target_idx = [idx for idx, string in enumerate(operate.detected_box_labels) if target == string][0]
+    target_x, _, _, target_height = operate.detector_output[target_idx][1]
+    print(target_height)
+    print(target_x)
+    #x and y is relative to the top left corner origin (0,0) of the image 
+    #therefore the horizontal center of the image is half of its width (r=240,c=320)
+    center_x = operate.img.shape[1]/2
+    print(center_x)
+    #define a threshold in which the target is close enough to the center 
+    tolerance_factor = 5
+    #threshold is proportional to target height. if far, small threshod. if close, large threshold
+    threshold = target_height/tolerance_factor
+    #repeat movement while the target is away from the center. 
+    while abs(target_x - center_x)>threshold:
+         #if the target x is on the right side of the image, turn right. 
+        if target_x > center_x: 
+            update_command(turn_right=True)
+        #else if the target is on the left side of the image, turn left. 
+        else: 
+            update_command(turn_left=True)
+        operate.take_pic()
+        drive_meas = operate.control()
+        operate.update_slam(drive_meas)
+        operate.detect_target()
+        #recalculate the coords of the targets
+        target_idx = [idx for idx, string in enumerate(operate.detected_box_labels) if target == string][0]
+        target_x, _, _, target_height = operate.detector_output[target_idx][1]
+    #after centering on the target, move towards it until a certain height is met OR an aruco marker becomes too close. 
+    # Currently a hardcoded value and does not account for the different heights of the fruit  
+    while target_height < 80 and not marker_close(operate): 
+        update_command(drive_forward=True)
+        operate.take_pic()
+        drive_meas = operate.control()
+        operate.update_slam(drive_meas) 
+        operate.detect_target()
+        if len(operate.lms) == 0: 
+            print("lost sight of target")
+            break 
+        target_idx = [idx for idx, string in enumerate(operate.detected_box_labels) if target == string][0]
+        _, _, _, target_height = operate.detector_output[target_idx][1]
+        print(f"target_height = {target_height}")
+    
+    #stop the driving 
+    update_command(stop=True)
+    drive_meas = operate.control()
+    operate.update_slam(drive_meas)
+    
+    #if the robot made it to the marker 
+    if target_height >= 80: 
+        return True
+    else: 
+        print("failed to drive towards target")
+        return False
+
+
 # main loop
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Fruit searching")
@@ -417,7 +474,7 @@ if __name__ == "__main__":
     parser.add_argument("--calib_dir", type=str, default="calibration/param/")
     parser.add_argument("--save_data", action='store_true')
     parser.add_argument("--play_data", action='store_true')
-    parser.add_argument("--yolo_model", default='YOLO/model/yolov8_model.pt')
+    parser.add_argument("--yolo_model", default='YOLO/model/yolov8_model_kmart.pt') #USING KMART YOLO MODEL 
     args, _ = parser.parse_known_args()
 
     # read in the true map
@@ -447,6 +504,8 @@ if __name__ == "__main__":
     operate = Operate(args) # this is in the wrong place - move it later
     operate.ekf_on = True
     robot_pose = np.array([0,0,0])
+    #run YOLO object detector (previously initiated with press of a key button)
+    operate.command['inference'] = True 
 
     #loop to extract current shopping item
     for shop_item in iter(search_list):
@@ -466,7 +525,7 @@ if __name__ == "__main__":
         startpos = (robot_pose[0], robot_pose[1])
 
         rrt_star_graph, shortest_path = find_path(startpos, endpos, obstacles_current, n_iter, radius, stepSize, bounds, goal_radius)     
-        #print_path(rrt_star_graph, shortest_path, f"original path to {shop_item}")     
+        #print_path(rrt_star_graph, shortest_path, f"original path to {shop_item}")  KEEP THIS COMMENTED FOR BEST ACCURACY    
 
         operate.control_clock = time.time()
 
@@ -491,14 +550,14 @@ if __name__ == "__main__":
                     operate.update_slam(drive_meas)
                     robot_pose=get_robot_pose()
                     [angle_arrived, angle_mav]=angle_mav_from_waypoint(waypoint, robot_pose, angle_mav) #returns boolean    
-                    print(f'robot pos is {robot_pose[0],robot_pose[1], clamp_angle(robot_pose[2])*180/np.pi} --- Turning')
+                    #print(f'robot pos is {robot_pose[0],robot_pose[1], clamp_angle(robot_pose[2])*180/np.pi} --- Turning')
                 print("Arrived at Angle")
 
 
                 dist_min=np.ones((1,5))*1e3 #very small number init- check postive upward trend, use for moving average
                 waypoint_arrived = False
-                marker_height_threshold = 65
-                while not waypoint_arrived and not marker_close(operate, marker_height_threshold):
+                target_in_sight_counter = 0 
+                while not waypoint_arrived and not marker_close(operate):
                     operate.take_pic()
                     update_command(drive_forward=True)
                     drive_meas = operate.control()
@@ -507,15 +566,30 @@ if __name__ == "__main__":
                     operate.detect_target() 
                     robot_pose=get_robot_pose()
                     [waypoint_arrived,dist_min]=distance_from_waypoint(waypoint, robot_pose, dist_min)
-                    print(f'robot pos is {robot_pose[0],robot_pose[1], clamp_angle(robot_pose[2])*180/np.pi} --- Driving Fwd')
+                    #if a target item is seen in the detected fruitss
+                    if shop_item in operate.detected_box_labels: 
+                        print(f"Target {shop_item} in sight")
+                        target_in_sight_counter += 1
+                        #if the target is reliably in sight
+                        if target_in_sight_counter > 3:
+                            #stop and drive to target 
+                            update_command(stop=True)
+                            drive_meas = operate.control()
+                            operate.update_slam(drive_meas)
+                            print(f"Driving towards target")
+                            drive_to_target_success = drive_to_target(operate, shop_item)
+                            if drive_to_target_success: 
+                                print(f"Made it to target")
+                                waypoint_arrived = True 
+                    #print(f'robot pos is {robot_pose[0],robot_pose[1], clamp_angle(robot_pose[2])*180/np.pi} --- Driving Fwd')
 
                 #if the robot is too close to a marker, stop and find a new shortest path  
-                if marker_close(operate, marker_height_threshold): 
+                if marker_close(operate): 
                     update_command(stop=True)
                     drive_meas = operate.control()
-                    operate.update_slam(drive_meas)
-                    robot_pose = get_robot_pose() 
+                    operate.update_slam(drive_meas) 
                     print("Finding a new shortest path...")
+                    robot_pose = get_robot_pose()
                     startpos = (robot_pose[0], robot_pose[1])
                     rrt_star_graph, shortest_path  = find_path(startpos, endpos, obstacles_current, n_iter, radius, stepSize, bounds, goal_radius)
                     #print_path(rrt_star_graph, shortest_path, f"New path to {shop_item}")
@@ -525,6 +599,9 @@ if __name__ == "__main__":
                 #if arrived at a waypoint, stop.  
                 if waypoint_arrived: 
                     update_command(stop=True)
+                    drive_meas = operate.control() 
+                    operate.update_slam(drive_meas)
+                    print("Arrived at Waypoint")
                     #if the current waypoint is also the final waypoint 
                     if waypoint == shortest_path[-1]: 
                         #setting this to true will cancel the while loop and move onto the next shop_item

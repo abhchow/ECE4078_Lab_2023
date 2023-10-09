@@ -79,6 +79,8 @@ class Operate:
             self.yolo_vis = np.ones((240, 320, 3)) * 100
         self.bg = pygame.image.load('pics/gui_mask.jpg')
         self.args = args 
+        self.detected_box_labels = []
+        self.lms = []
 
     # wheel control
     def control(self):
@@ -109,9 +111,9 @@ class Operate:
     # SLAM with ARUCO markers       
     def update_slam(self, drive_meas):
         # print("we update slam")
-        lms, self.aruco_img = self.aruco_det.detect_marker_positions(self.img)
+        self.lms, self.aruco_img = self.aruco_det.detect_marker_positions(self.img) 
         if self.request_recover_robot:
-            is_success = self.ekf.recover_from_pause(lms)
+            is_success = self.ekf.recover_from_pause(self.lms)
             if is_success:
                 self.notification = 'Robot pose is successfuly recovered'
                 self.ekf_on = True
@@ -123,9 +125,9 @@ class Operate:
             # print("ekf is on")
             self.ekf.predict(drive_meas)
             # print(f"predict P: {self.ekf.P}")
-            self.ekf.add_landmarks(lms)
-            if len(lms) > 0:
-                self.ekf.update(lms)
+            self.ekf.add_landmarks(self.lms)
+            if len(self.lms) > 0:
+                self.ekf.update(self.lms)
 
     # using computer vision to detect targets
     def detect_target(self):
@@ -133,7 +135,7 @@ class Operate:
             # need to convert the colour before passing to YOLO
             yolo_input_img = cv2.cvtColor(self.img, cv2.COLOR_RGB2BGR)
 
-            self.detector_output, self.yolo_vis = self.detector.detect_single_image(yolo_input_img)
+            self.detector_output, self.yolo_vis, self.detected_box_labels = self.detector.detect_single_image(yolo_input_img)
 
             # covert the colour back for display purpose
             self.yolo_vis = cv2.cvtColor(self.yolo_vis, cv2.COLOR_RGB2BGR)

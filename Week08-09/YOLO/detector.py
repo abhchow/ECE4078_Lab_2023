@@ -10,26 +10,26 @@ class Detector:
     def __init__(self, model_path):
         self.model = YOLO(model_path)
 
-        self.class_colour = {
-            'orange': (0, 165, 255),
-            'lemon': (0, 255, 255),
-            'lime': (0, 255, 0),
-            'tomato': (0, 0, 255),
-            'capsicum': (255, 0, 0),
-            'potato': (255, 255, 0),
-            'pumpkin': (255, 165, 0),
-            'garlic': (255, 0, 255)
-        }
-
         # self.class_colour = {
         #     'orange': (0, 165, 255),
-        #     'banana': (0, 255, 255),
-        #     'pear': (0, 255, 0),
-        #     'apple': (0, 0, 255),
-        #     'kiwi': (255, 0, 0),
+        #     'lemon': (0, 255, 255),
+        #     'lime': (0, 255, 0),
+        #     'tomato': (0, 0, 255),
+        #     'capsicum': (255, 0, 0),
         #     'potato': (255, 255, 0),
-        #     'melon': (255, 165, 0),
+        #     'pumpkin': (255, 165, 0),
+        #     'garlic': (255, 0, 255)
         # }
+
+        self.class_colour = {
+            'orange': (0, 165, 255),
+            'banana': (0, 255, 255),
+            'pear': (0, 255, 0),
+            'apple': (0, 0, 255),
+            'kiwi': (255, 0, 0),
+            'potato': (255, 255, 0),
+            'melon': (255, 165, 0),
+        }
 
     def detect_single_image(self, img):
         """
@@ -41,7 +41,7 @@ class Detector:
             bboxes: list of lists, box info [label,[x,y,width,height]] for all detected targets in image
             img_out: image with bounding boxes and class labels drawn on
         """
-        bboxes = self._get_bounding_boxes(img)
+        bboxes, box_labels = self._get_bounding_boxes(img)
 
         img_out = deepcopy(img)
 
@@ -61,8 +61,9 @@ class Detector:
             # draw class label
             img_out = cv2.putText(img_out, bbox[0], (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
                                   self.class_colour[bbox[0]], 2)
+        
 
-        return bboxes, img_out
+        return bboxes, img_out, box_labels
 
     def _get_bounding_boxes(self, cv_img):
         """
@@ -81,17 +82,18 @@ class Detector:
 
         # get bounding box and class label for target(s) detected
         bounding_boxes = []
+        box_labels = []
         for prediction in predictions:
             boxes = prediction.boxes
             for box in boxes:
                 # bounding format in [x, y, width, height]
                 box_cord = box.xywh[0]
-
-                box_label = box.cls  # class label of the box
+                box_label = box.cls
+                box_labels.append(prediction.names[int(box_label)])  # class label of the box
 
                 bounding_boxes.append([prediction.names[int(box_label)], np.asarray(box_cord)])
 
-        return bounding_boxes
+        return bounding_boxes, box_labels
 
 
 # FOR TESTING ONLY
@@ -99,7 +101,7 @@ if __name__ == '__main__':
     # get current script directory
     script_dir = os.path.dirname(os.path.abspath(__file__))
 
-    yolo = Detector(f'{script_dir}/model/yolov8_model.pt')
+    yolo = Detector(f'{script_dir}/model/yolov8_model_kmart.pt') #REMEMBER TO UPDATE THE NAME OF THIS 
 
     img = cv2.imread(f'{script_dir}/test/test_image_1.png')
 
