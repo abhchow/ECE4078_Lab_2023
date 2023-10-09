@@ -193,23 +193,27 @@ def drive_to_point(waypoint, robot_pose,dt):
     # ####################################################
     return 
 
-def orientation_arrived(waypoint, robot_pose):
+def orientation_arrived(waypoint, robot_pose, angle_mov_ave):
      #angle_diff = get_angle_robot_to_goal(robot_pose.T,(np.array(waypoint)).T)
      angle_diff = clamp_angle(np.arctan2(waypoint[1]-robot_pose[1], waypoint[0]-robot_pose[0])-robot_pose[2])
      threshold=0.05
-     if abs(angle_diff)<threshold:
-         return True
+     if abs(angle_diff)<threshold or abs(angle_diff)> np.mean(abs(angle_mov_ave)):
+         return True, angle_mov_ave
      else:
-         return False
+         np.append(angle_mov_ave, angle_diff)
+         angle_mov_ave = angle_mov_ave[1:]
+         return False, angle_mov_ave
 
 def waypoint_arrived(waypoint, robot_pose, dist_min):
+    #dist min= array of floats
     dist_from_waypoint = get_distance_robot_to_goal(robot_pose.T,(np.array(waypoint)).T)
     #need to change min dist to be array of updward trend
     threshold=0.05
-    if dist_from_waypoint<threshold: #or dist_from_waypoint>dist_min:
+    if dist_from_waypoint<threshold or dist_from_waypoint> np.mean(dist_min):
          return True, dist_min #distmin no loner used
     else:
-         dist_min = dist_from_waypoint
+         np.append(dist_min, dist_from_waypoint)
+         dist_min = dist_min[1:]
          #print(dist_from_waypoint) #moved
          return False, dist_min #dist min updates every iter, but should not on last
     
@@ -459,29 +463,32 @@ if __name__ == "__main__":
         operate.control_clock = time.time()
     
         for waypoint in shortest_path[1:]:
-             while not orientation_arrived(waypoint, robot_pose): #returns boolean
+             condition = False
+             angle_mov_ave=np.ones((1,5))*1e3
+             while not condition:
+                [condition, angle_mov_ave]=orientation_arrived(waypoint, robot_pose,angle_mov_ave) #returns boolean
                 #print(f'theta = {get_robot_pose()[2]*180/np.pi}')
-
-                operate.take_pic()
-                #angle_diff = get_angle_robot_to_goal(robot_pose.T,(np.array(waypoint)).T)
-                angle_diff = clamp_angle(np.arctan2(waypoint[1]-robot_pose[1], waypoint[0]-robot_pose[0])-robot_pose[2])
-                #print(f'angle from goal = {angle_diff*180/np.pi}')
-                #update_command(turn_left=True)
-                if angle_diff>0: 
-                    #turn left
-                    update_command(turn_left=True) #fix mb
-                else:
-                    #turn right
-                    update_command(turn_right=True)
-                drive_meas = operate.control() 
-                operate.update_slam(drive_meas)
-                #operate.record_data()
-                #operate.save_image()
-                #operate.detect_target() #Yolo only
-                robot_pose=get_robot_pose()
-                print(f'robot pos is {robot_pose[0],robot_pose[1], robot_pose[2]*180/np.pi} --- Turning')
-             print("Arrived at Angle")
-             dist_min=np.ones((1,3))*1e3 #very large number- check postive upward trend
+                if not condition: 
+                    operate.take_pic()
+                    #angle_diff = get_angle_robot_to_goal(robot_pose.T,(np.array(waypoint)).T)
+                    angle_diff = clamp_angle(np.arctan2(waypoint[1]-robot_pose[1], waypoint[0]-robot_pose[0])-robot_pose[2])
+                    #print(f'angle from goal = {angle_diff*180/np.pi}')
+                    #update_command(turn_left=True)
+                    if angle_diff>0: 
+                        #turn left
+                        update_command(turn_left=True) #fix mb
+                    else:
+                        #turn right
+                        update_command(turn_right=True)
+                    drive_meas = operate.control() 
+                    operate.update_slam(drive_meas)
+                    #operate.record_data()
+                    #operate.save_image()
+                    #operate.detect_target() #Yolo only
+                    robot_pose=get_robot_pose()
+                    print(f'robot pos is {robot_pose[0],robot_pose[1], robot_pose[2]*180/np.pi} --- Turning')
+                    print("Arrived at Angle")
+             dist_min=np.ones((1,5))*1e3 #very small number init- check postive upward trend, use for moving average
              condition = False
              while not condition:
                 [condition,dist_min]=waypoint_arrived(waypoint, robot_pose, dist_min)
@@ -490,9 +497,9 @@ if __name__ == "__main__":
                     update_command(drive_forward=True)
                     drive_meas = operate.control()
                     operate.update_slam(drive_meas)
-                #operate.record_data()
-                #operate.save_image()
-                #operate.detect_target() #Yolo only
+                    #operate.record_data()
+                    #operate.save_image()
+                    #operate.detect_target() #Yolo only
                     robot_pose=get_robot_pose()
                     print(f'robot pos is {robot_pose[0],robot_pose[1], robot_pose[2]*180/np.pi, dist_min} --- Driving Fwd')
              update_command(stop=True)
