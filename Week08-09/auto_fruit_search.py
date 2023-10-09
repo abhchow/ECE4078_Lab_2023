@@ -200,7 +200,7 @@ def orientation_arrived(waypoint, robot_pose, angle_mov_ave):
      if abs(angle_diff)<threshold or abs(angle_diff)> np.mean(abs(angle_mov_ave)):
          return True, angle_mov_ave
      else:
-         np.append(angle_mov_ave, angle_diff)
+         angle_mov_ave = np.append(angle_mov_ave, angle_diff)
          angle_mov_ave = angle_mov_ave[1:]
          return False, angle_mov_ave
 
@@ -212,7 +212,7 @@ def waypoint_arrived(waypoint, robot_pose, dist_min):
     if dist_from_waypoint<threshold or dist_from_waypoint> np.mean(dist_min):
          return True, dist_min #distmin no loner used
     else:
-         np.append(dist_min, dist_from_waypoint)
+         dist_min = np.append(dist_min, dist_from_waypoint)
          dist_min = dist_min[1:]
          #print(dist_from_waypoint) #moved
          return False, dist_min #dist min updates every iter, but should not on last
@@ -351,7 +351,7 @@ def update_command(drive_forward=False, drive_backward=False, turn_left=False, t
 # main loop
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Fruit searching")
-    parser.add_argument("--map", type=str, default='sat203_full.txt') # change to 'M4_true_map_part.txt' for lv2&3
+    parser.add_argument("--map", type=str, default='M4_G16_mon9oct.txt') # change to 'M4_true_map_part.txt' for lv2&3
     parser.add_argument("--ip", metavar='', type=str, default='192.168.50.1')
     parser.add_argument("--port", metavar='', type=int, default=8080)
     #copy over from operate, did not copy save/play data
