@@ -1,5 +1,5 @@
 melon
+orange
 apple
 pear
-orange
 kiwi

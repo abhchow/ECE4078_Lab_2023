@@ -193,7 +193,7 @@ def drive_to_point(waypoint, robot_pose,dt):
     # ####################################################
     return 
 
-def orientation_arrived(waypoint, robot_pose, angle_mov_ave):
+def angle_mav_from_waypoint(waypoint, robot_pose, angle_mov_ave):
      #angle_diff = get_angle_robot_to_goal(robot_pose.T,(np.array(waypoint)).T)
      angle_diff = clamp_angle(np.arctan2(waypoint[1]-robot_pose[1], waypoint[0]-robot_pose[0])-robot_pose[2])
      threshold=0.05
@@ -204,7 +204,7 @@ def orientation_arrived(waypoint, robot_pose, angle_mov_ave):
          angle_mov_ave = angle_mov_ave[1:]
          return False, angle_mov_ave
 
-def waypoint_arrived(waypoint, robot_pose, dist_min):
+def distance_from_waypoint(waypoint, robot_pose, dist_min):
     #dist min= array of floats
     dist_from_waypoint = get_distance_robot_to_goal(robot_pose.T,(np.array(waypoint)).T)
     #need to change min dist to be array of updward trend
@@ -346,12 +346,71 @@ def update_command(drive_forward=False, drive_backward=False, turn_left=False, t
         operate.command['motion'] = [0, 0]
     return 
 
+def find_path(startpos, endpos, obstacles_current, n_iter, radius, stepSize, bounds, goal_radius):
+    rrt_star_graph = rrt.RRT_star(startpos, endpos, obstacles_current, n_iter, radius, stepSize, bounds, goal_radius)
+    #if cannot find a path, make obstacle radius iteratively smaller and try again 
+    while rrt_star_graph.success == False: 
+        radius = radius - 0.05
+        if radius < 0: 
+            sys.exit("ERROR: Could not find a path from here")
+        rrt_star_graph = rrt.RRT_star(startpos, endpos, obstacles_current, n_iter, radius, stepSize, bounds, goal_radius)
+    #do not include last element in shortest path as that is the endpos (not offset)
+    shortest_path = (rrt.dijkstra(rrt_star_graph))[:-1]
+    return rrt_star_graph, shortest_path
 
+def marker_close(operate, distance_threshold):
+    corners, ids, rejected = cv2.aruco.detectMarkers(operate.img, operate.aruco_det.aruco_dict, parameters=operate.aruco_det.aruco_params)
+    if len(corners) != 0: 
+        for box in corners[0]:
+            corner0 = box[0]
+            corner1 = box[1]
+            corner2 = box[2]
+            corner3 = box[3]
+            # diff in y values of each corner
+            y_diff1 = abs(corner1[1] - corner0[1])
+            y_diff2 = abs(corner2[1] - corner1[1])
+            y_diff3 = abs(corner3[1] - corner2[1])
+            y_diff4 = abs(corner0[1] - corner3[1])
+            if (y_diff1>distance_threshold or 
+                y_diff2>distance_threshold or 
+                y_diff3>distance_threshold or
+                y_diff4>distance_threshold):
+                #the markers are too close to the camera 
+                return True 
+            else: 
+                return False
+
+def print_path(rrt_star_graph, shortest_path, fig_name): 
+    fig, ax = plt.subplots()
+    for edge in rrt_star_graph.edges:
+        v1 = rrt_star_graph.vertices[edge[0]]
+        v0 = rrt_star_graph.vertices[edge[1]]
+        ax.plot((v1[0], v0[0]), (v1[1], v0[1]), 'r-')
+    for vertex in rrt_star_graph.vertices:
+        if (vertex == startpos):
+            ax.plot(vertex[0],vertex[1], 'ko') 
+        else: 
+            ax.plot(vertex[0],vertex[1], 'ro')
+    goal_patch = Circle(endpos, goal_radius, color='g')
+    ax.add_patch(goal_patch)
+    for obstacle in obstacles_current: 
+        obstacle_patch = Circle(obstacle, radius)
+        ax.add_patch(obstacle_patch)
+    ax.text(startpos[0], startpos[1], "startpos")
+    ax.plot(endpos[0], endpos[1], "ko")
+    ax.text(endpos[0], endpos[1], "endpos")
+    #plot shortest path     
+    for (x0,y0), (x1,y1) in zip(shortest_path[:-1], shortest_path[1:]):
+        ax.plot((x0,x1), (y0,y1),'b-')
+    for (x0,y0) in shortest_path:
+        ax.plot(x0,y0,'bo')
+        ax.text(x0, y0, f'({x0:.2f}, {y0:.2f})', ha='right', va='bottom', color='blue')
+    plt.savefig(f"./graphs/rrt_graph_{str(fig_name)}.png")
 
 # main loop
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Fruit searching")
-    parser.add_argument("--map", type=str, default='M4_G16_mon9oct.txt') # change to 'M4_true_map_part.txt' for lv2&3
+    parser.add_argument("--map", type=str, default='ryanhouse_full.txt') # change to 'M4_true_map_part.txt' for lv2&3
     parser.add_argument("--ip", metavar='', type=str, default='192.168.50.1')
     parser.add_argument("--port", metavar='', type=int, default=8080)
     #copy over from operate, did not copy save/play data
@@ -370,15 +429,12 @@ if __name__ == "__main__":
     fruits_true_pos_tuple = [tuple(array) for array in fruits_true_pos]  
     aruco_true_pos_tuple = [tuple(array) for array in aruco_true_pos]
     obstacles_tuple = fruits_true_pos_tuple+aruco_true_pos_tuple
-    n_iter=200 #make sure not too long
+    n_iter=400 #make sure not too long
     radius=0.25 #for clearance of obsticals. Large radius because penguin Pi itself is large, 
     stepSize= 0.7 #need large stepsize
     bounds = (-1.4, 1.4, -1.4, 1.4)
     goal_radius = 0.45 #marginally less than 0.5m so that robot is fully within the goal. 
 
-    # wheel_vel_lin=30
-    # wheel_vel_rot=30
-    # dt=0.1
 
     plot_tree = True
     # The following is only a skeleton code for semi-auto navigation
@@ -388,16 +444,10 @@ if __name__ == "__main__":
     # startpos=(0,0)
 
 
-    #Initialise comparison of waypoints lists 
-    drove_to_waypoints = []
-    actual_waypoints = []
-
     operate = Operate(args) # this is in the wrong place - move it later
     operate.ekf_on = True
     robot_pose = np.array([0,0,0])
 
-    # while True:
-    # enter the waypoints
     #loop to extract current shopping item
     for shop_item in iter(search_list):
         print("\n ------------------------------------------")
@@ -413,67 +463,24 @@ if __name__ == "__main__":
         # estimate the robot's pose
         robot_pose = get_robot_pose()
 
-        #add pathplanning
-        # goalpos = (1.39, 1.39)
         startpos = (robot_pose[0], robot_pose[1])
 
-        rrt_star_graph = rrt.RRT_star(startpos, endpos, obstacles_current, n_iter, radius, stepSize, bounds, goal_radius) #map_copy instead of obstacles_tuple
-        wheel_vel_lin = 30 # tick/s
-        wheel_vel_rot = 15
+        rrt_star_graph, shortest_path = find_path(startpos, endpos, obstacles_current, n_iter, radius, stepSize, bounds, goal_radius)     
+        #print_path(rrt_star_graph, shortest_path, f"original path to {shop_item}")     
 
-        if plot_tree:
-            fig, ax = plt.subplots()
-            for edge in rrt_star_graph.edges:
-                v1 = rrt_star_graph.vertices[edge[0]]
-                v0 = rrt_star_graph.vertices[edge[1]]
-                ax.plot((v1[0], v0[0]), (v1[1], v0[1]), 'r-')
-            for vertex in rrt_star_graph.vertices:
-                if (vertex == startpos):
-                    ax.plot(vertex[0],vertex[1], 'ko') 
-                else: 
-                    ax.plot(vertex[0],vertex[1], 'ro')
-            goal_patch = Circle(endpos, goal_radius, color='g')
-            ax.add_patch(goal_patch)
-            for obstacle in obstacles_current: 
-                obstacle_patch = Circle(obstacle, radius)
-                ax.add_patch(obstacle_patch)
-            ax.text(startpos[0], startpos[1], "startpos")
-            ax.plot(endpos[0], endpos[1], "ko")
-            ax.text(endpos[0], endpos[1], "endpos")
-
-        #debugging box thing 
-
-
-        if rrt_star_graph.success:
-            #do not include last element in shortest path as that is the endpos (not offset)
-            shortest_path= (rrt.dijkstra(rrt_star_graph))[:-1]
-            actual_waypoints.append(shortest_path)        
-            if plot_tree:
-                for (x0,y0), (x1,y1) in zip(shortest_path[:-1], shortest_path[1:]):
-                    ax.plot((x0,x1), (y0,y1),'b-')
-                for (x0,y0) in shortest_path:
-                    ax.plot(x0,y0,'bo')
-                    ax.text(x0, y0, f'({x0:.2f}, {y0:.2f})', ha='right', va='bottom', color='blue')
-
-        plt.savefig(f"./graphs/rrt_graph_{str(shop_item)}.png")
-
-
-        # operate = Operate(args) # this is in the wrong place - move it later
-        # operate.ekf_on = True
         operate.control_clock = time.time()
-    
-        for waypoint in shortest_path[1:]:
-             condition = False
-             angle_mov_ave=np.ones((1,5))*1e3
-             while not condition:
-                [condition, angle_mov_ave]=orientation_arrived(waypoint, robot_pose,angle_mov_ave) #returns boolean
-                #print(f'theta = {get_robot_pose()[2]*180/np.pi}')
-                if not condition: 
+
+        goal_arrived = False
+        while goal_arrived == False: 
+            
+            #step through waypoint in shortest_path 
+            for waypoint in shortest_path[1:]:
+                angle_arrived = False
+                angle_mav=np.ones((1,5))*1e3
+
+                while not angle_arrived:    
                     operate.take_pic()
-                    #angle_diff = get_angle_robot_to_goal(robot_pose.T,(np.array(waypoint)).T)
                     angle_diff = clamp_angle(np.arctan2(waypoint[1]-robot_pose[1], waypoint[0]-robot_pose[0])-robot_pose[2])
-                    #print(f'angle from goal = {angle_diff*180/np.pi}')
-                    #update_command(turn_left=True)
                     if angle_diff>0: 
                         #turn left
                         update_command(turn_left=True) #fix mb
@@ -482,129 +489,62 @@ if __name__ == "__main__":
                         update_command(turn_right=True)
                     drive_meas = operate.control() 
                     operate.update_slam(drive_meas)
-                    #operate.record_data()
-                    #operate.save_image()
-                    #operate.detect_target() #Yolo only
                     robot_pose=get_robot_pose()
-                    print(f'robot pos is {robot_pose[0],robot_pose[1], robot_pose[2]*180/np.pi} --- Turning')
-                    print("Arrived at Angle")
-             dist_min=np.ones((1,5))*1e3 #very small number init- check postive upward trend, use for moving average
-             condition = False
-             while not condition:
-                [condition,dist_min]=waypoint_arrived(waypoint, robot_pose, dist_min)
-                if not condition:
+                    [angle_arrived, angle_mav]=angle_mav_from_waypoint(waypoint, robot_pose, angle_mav) #returns boolean    
+                    print(f'robot pos is {robot_pose[0],robot_pose[1], clamp_angle(robot_pose[2])*180/np.pi} --- Turning')
+                print("Arrived at Angle")
+
+
+                dist_min=np.ones((1,5))*1e3 #very small number init- check postive upward trend, use for moving average
+                waypoint_arrived = False
+                marker_height_threshold = 65
+                while not waypoint_arrived and not marker_close(operate, marker_height_threshold):
                     operate.take_pic()
                     update_command(drive_forward=True)
                     drive_meas = operate.control()
                     operate.update_slam(drive_meas)
-                    #operate.record_data()
-                    #operate.save_image()
-                    #operate.detect_target() #Yolo only
                     robot_pose=get_robot_pose()
-                    print(f'robot pos is {robot_pose[0],robot_pose[1], robot_pose[2]*180/np.pi, dist_min} --- Driving Fwd')
-             update_command(stop=True)
-             print(f"Arrived at a waypoint: {waypoint}")
-             print(f'robot pos is {robot_pose[0],robot_pose[1], robot_pose[2]*180/np.pi} --- AT WAYPOINT')
-        print(f"Arrived at {shop_item}")  
-        print(f"Relocalizing...")
-        # turn_angle = 2*np.pi() 
-        # curent_angle = robot_pose[2]
-        # angle_diff = turn_angle - robot_pose[2] 
-        # while angle_diff > 0: 
-        #     update_command(turn_left=True) LOCALIZATION 
-        #     drive_meas = operate.control()
-        #     operate.update_slam(drive_meas)
-        #     robot_pose = get_robot_pose() 
-        #     angle_diff = angle_diff - 
+                    [waypoint_arrived,dist_min]=distance_from_waypoint(waypoint, robot_pose, dist_min)
+                    print(f'robot pos is {robot_pose[0],robot_pose[1], clamp_angle(robot_pose[2])*180/np.pi} --- Driving Fwd')
 
+                #if the robot is too close to a marker, stop and find a new shortest path  
+                if marker_close(operate, marker_height_threshold): 
+                    update_command(stop=True)
+                    drive_meas = operate.control()
+                    operate.update_slam(drive_meas)
+                    robot_pose = get_robot_pose() 
+                    print("Finding a new shortest path...")
+                    startpos = (robot_pose[0], robot_pose[1])
+                    rrt_star_graph, shortest_path  = find_path(startpos, endpos, obstacles_current, n_iter, radius, stepSize, bounds, goal_radius)
+                    #print_path(rrt_star_graph, shortest_path, f"New path to {shop_item}")
+                    #start the for loop again with the new shortest_path
+                    break 
 
-             
-
+                #if arrived at a waypoint, stop.  
+                if waypoint_arrived: 
+                    update_command(stop=True)
+                    #if the current waypoint is also the final waypoint 
+                    if waypoint == shortest_path[-1]: 
+                        #setting this to true will cancel the while loop and move onto the next shop_item
+                        goal_arrived = True
+                        print("--------------------------------------\n")
+                        print(f"Arrived at {shop_item}")
+                        print("--------------------------------------\n")
+                        # #relocalise the robot after arriving at a shop item   
+                        # print(f"Relocalising...")
+                        # turn_angle = 2*np.pi
+                        # original_angle = robot_pose[2]
+                        # while angle_diff < turn_angle: 
+                        #     operate.take_pic()
+                        #     update_command(turn_left=True) 
+                        #     drive_meas = operate.control()
+                        #     operate.update_slam(drive_meas)
+                        #     robot_pose = get_robot_pose()
+                        #     current_angle = robot_pose[2] 
+                        #     angle_diff = abs(original_angle-current_angle)
+                        # print("Finishing localising.")
+                        # print("--------------------------------------\n")
     
-                   
-
-        # # robot drives to the waypoint
-        # #waypoint =                 
-        # # waypoint = endpos
-        # #will be [0,0,0] to start with 
-        # robot_pose = get_robot_pose(wheel_vel_lin, wheel_vel_rot, dt)
-        # print(f"x: {robot_pose[0]}, y: {robot_pose[1]}") 
-        # robot_path = [(robot_pose[0], robot_pose[1])]
-        # for i in range(len(shortest_path)):
-        #     if i==0:
-        #         continue
-        #     waypoint = list(shortest_path[i])
-        #     drive_to_point(waypoint,robot_pose, 0.1)
-        #     robot_pose = get_robot_pose(wheel_vel_lin, wheel_vel_rot, dt)
-        #     robot_path.append((robot_pose[0],robot_pose[1]))
-        #     #print robot pose after driving to a new point
-        #     print(f"x: {robot_pose[0]}, y: {robot_pose[1]}")
-        #     #if we are at the last waypoint 
-        #     if i == (len(shortest_path)-1):
-        #         #if we are in the goal radius 
-        #         if get_distance_robot_to_goal(robot_pose.T,(np.array(endpos)).T)<goal_radius: 
-        #             print(f"{shop_item} goal reached")
-                    
-                 
-        # actual_waypoints.append(robot_path)
-
-        # #add the actual robot path driven on the plot 
-        # print(robot_path)
-        # if plot_tree:
-        #     for (x0,y0), (x1,y1) in zip(robot_path[:-1], robot_path[1:]):
-        #         ax.plot((x0,x1), (y0,y1),'g-')
-        #     for (x0,y0) in robot_path:
-        #         ax.plot(x0,y0,'go')
-        #         ax.text(x0, y0, f'({x0:.2f}, {y0:.2f})', ha='right', va='bottom', color='green')
-
-        # if plot_tree:
-        #     plt.show()        
-             
-        ##########starting l3
-
-
-        # robot_pose = get_robot_pose(wheel_vel_lin, wheel_vel_rot, dt)
-        # print("Finished driving to waypoint: {}; New robot pose: {}".format(waypoint,robot_pose))
-        # startpos=(robot_pose[0], robot_pose[1])
-        #drive to a waypoint test with manual input  
-        # initial_state = get_robot_pose(operate)
-        # print("Initial robot state: {}", initial_state)
-        # drive_to_point((x,y), (0,0,3*np.pi/4))
-        # #update robot position 
-        # final_state = get_robot_pose(operate)
-        # print("Final robot state: {}", final_state)
-        # operate.update_slam()
-
-
-        # #drive to each waypoint 
-        # for i in len(shortest_path):
-        #     # robot drives to the waypoint
-        #     waypoint = shortest_path[i]
-        #     drive_to_point(waypoint,robot_pose)
-        #     #robot_pose = get_robot_pose()
-        #     print("Finished driving to waypoint: {}; New robot pose: {}".format(waypoint,robot_pose))       
-
-
-        # #robot_pose = operate.ekf.get_state_vector()
-        #     for (x0,y0), (x1,y1), (x2,y2) in zip(shortest_path[:-1], shortest_path[1:]):
-        #         #drive to point via controller
-        #         theta0=np.arctan(y1-y0,x1-x0)
-        #         theta1=np.arctan(y2-y1,x2-x1)
-        #         waypoint=[x0,y0,theta0]
-        #         goal_position=[x1,y1,theta1]
-        #         #controller(way_point,goal_position)
-        #         ax.plot((x0,x1), (y0,y1),'b-')
-        #         ax.plot(x0,y0,'bo')
-        # plt.show()
-            
-        #     for i in range(len(path)):
-        #         # robot drives to the waypoint
-        #         waypoint = path[i]
-        #         drive_to_point(waypoint,robot_pose)
-        #         print("Finished driving to waypoint: {}; New robot pose: {}".format(waypoint,robot_pose))              
-        # else:
-        #     plt.plot(rrt_star_graph, obstacles, radius)
-
 
         #after reaching endpoint should confirm target with YOLO
         #operate.Operate.detect_target() #only used w YOLO

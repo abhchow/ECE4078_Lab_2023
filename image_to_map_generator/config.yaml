@@ -3,23 +3,25 @@
 # ===============================================
 # Main params to modify
 # ===============================================
-input_image: example_input_image.jpg
-output_map_name: test_output.txt
+input_image: g16.jpg
+output_map_name: g16_full.txt
 
 # a reference map to specify the objects (how many for each type) on the map
-reference_map: example_reference_map.txt
+reference_map: g16ref.txt
 
 # fruits - list of fruits to be placed in the arena and their colours
 fruits:
-  lemon: [86, 255, 255]  # BGR
+  pear: [152, 251, 152]  # BGR
   orange: [0, 127, 255]
-  tomato: [0, 0, 191]
-  lime: [0, 255, 0]
-  garlic: [255, 255, 255]
-  capsicum: [0, 191, 191]
-  potato: [0, 63, 127]
-  pumpkin: [0, 84, 255]
-
+  apple: [0, 0, 191]
+  kiwi: [0, 63, 127]
+  melon: [255, 192, 203]
+  fruit1: [0,0,0]
+  fruit2: [0,0,0]
+  fruit3: [0,0,0]
+  fruit4: [0,0,0]
+  fruit5: [0,0,0]
+  
 # change this if the GUI is too big for your screen
 image_display_res:
   x: 700

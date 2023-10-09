@@ -39,11 +39,6 @@ def Intersection(line, center, radius):
         return False
 
     return True
-# def checkIntersectionWithLine(line1,line2):
-
-
-
-
 
 def distance(x, y):
     return np.linalg.norm(np.array(x) - np.array(y))
@@ -62,13 +57,18 @@ def isThruObstacle(line, obstacles, radius):
             return True
     return False
 
-# def isThruBounds(line,G):
-#     xmin, xmax, ymin, ymax = G.bounds
-#     line_left = Line((xmin,ymin),(xmin,ymax))
-#     line_right = Line((xmin,ymin),(xmax,ymax))
-#     line_top = Line((xmin,ymax),(xmax,ymax))
-#     line_bottom = Line((xmin,ymin),(xmax,ymin))
-#     checkIntersectionWithLine(line,line_left)
+def isThruBounds(line,bounds):
+
+    xmin, xmax, ymin, ymax = bounds
+
+    (x1,y1) = line.p+line.dist*line.dirn
+
+    #check if line starting from (x0,y0) extends out of bounds
+    if (x1<xmin or x1>xmax or y1<ymin or y1>ymax): 
+        return True 
+    else: 
+        return False 
+
     
 
 def nearest(G, vex, obstacles, radius):
@@ -119,10 +119,9 @@ def isInWindow(pos, winx, winy, width, height):
 
 class Graph:
     ''' Define graph '''
-    def __init__(self, startpos, endpos, bounds):
+    def __init__(self, startpos, endpos):
         self.startpos = startpos
         self.endpos = endpos
-        self.bounds = bounds
 
         self.vertices = [startpos]
         self.edges = []
@@ -154,22 +153,20 @@ class Graph:
     def randomPosition(self,radius):
         rx = random()
         ry = random()
-        #scale = 5 # added box scale parameter
-        if abs(self.sx / 2) < radius: 
-            posx = self.startpos[0] - (radius) + rx * (2*radius) * 2
-        else:
-            posx = self.startpos[0] - (self.sx / 2.) + rx * self.sx * 2
+        # #scale = 5 # added box scale parameter
+        # if abs(self.sx / 2) < radius: 
+        #     posx = self.startpos[0] - (radius) + rx * (2*radius) * 2
+        # else:
+        #     posx = self.startpos[0] - (self.sx / 2.) + rx * self.sx * 2
             
-        if abs(self.sy /2 ) < radius: 
-            posy = self.startpos[1] - (radius) + ry * (2*radius) * 2
-        else: 
-            posy = self.startpos[1] - (self.sy / 2.) + ry * self.sy * 2
-             
-        # #random point within the bounds 
-        # xmin, xmax, ymin, ymax = self.bounds
-        # posx = xmin*rx + xmax*rx
-        # posy = ymin*rx + ymax*rx
+        # if abs(self.sy /2 ) < radius: 
+        #     posy = self.startpos[1] - (radius) + ry * (2*radius) * 2
+        # else: 
+        #     posy = self.startpos[1] - (self.sy / 2.) + ry * self.sy * 2
 
+        posx = -1.4+rx*2.8
+        posy = -1.4+ry*2.8
+             
         return posx, posy
 
 
@@ -203,13 +200,6 @@ def RRT(startpos, endpos, obstacles, n_iter, radius, stepSize):
             # break
     return G
 
-def in_bounds(self,vex_coords):
-    x, y = vex_coords
-    xmin, xmax, ymin, ymax = self.bounds
-    if x > xmin and x < xmax and y > ymin and y < ymax:
-        return True
-    return False
-
 def RRT_star(startpos, endpos, obstacles, n_iter, radius, stepSize, bounds, goal_radius):
     """RRT star algorithm  
 
@@ -226,13 +216,14 @@ def RRT_star(startpos, endpos, obstacles, n_iter, radius, stepSize, bounds, goal
     Returns:
         _type_: _description_
     """
-    G = Graph(startpos, endpos, bounds)
+    G = Graph(startpos, endpos)
 
     for _ in range(n_iter):
-        randvex = G.randomPosition(radius) #added bounds to random position 
+        randvex = G.randomPosition(radius) 
         
         # if isInObstacle(randvex, obstacles, radius):
-        if isInObstacle(randvex, obstacles, radius) or not in_bounds(G, randvex):
+        #randomvex generated so that bias not to travel towards an obstacle of any kind. 
+        if isInObstacle(randvex, obstacles, radius):
             continue
 
         nearvex, nearidx = nearest(G, randvex, obstacles, radius)
@@ -257,7 +248,7 @@ def RRT_star(startpos, endpos, obstacles, n_iter, radius, stepSize, bounds, goal
 
             line = Line(vex, newvex)
             # if isThruObstacle(line, obstacles, radius) or isThruBounds(line,G):
-            if isThruObstacle(line, obstacles, radius):
+            if isThruObstacle(line, obstacles, radius) or isThruBounds(line, bounds):
                 continue
 
             idx = G.vex2idx[vex]
