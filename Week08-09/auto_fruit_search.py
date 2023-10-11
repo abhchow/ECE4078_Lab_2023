@@ -319,7 +319,7 @@ def get_robot_pose():
     # lv, rv = operate.ekf.robot.convert_wheels_to_leftright(0, wheel_vel_rot)
     # drive_meas = measure.Drive(lv, rv, turn_time)
 
-    #replace update_slam()
+    #replace update_slam()---> skip add_landmarks b/w predict and update
     #operate.take_pic()
     #lms, aruco_img = aruco.aruco_detector.detect_marker_positions(operate.img)
     #previously used EKF.function_name
@@ -408,6 +408,10 @@ def print_path(rrt_star_graph, shortest_path, fig_name):
     plt.savefig(f"./graphs/rrt_graph_{str(fig_name)}.png")
 
 def drive_to_target(operate, target): 
+
+    #add new
+    ret_var=0 #false
+
     #long winded way to get target values in case more fruits pop up in the detected box labels (even due to background)
     target_idx = [idx for idx, string in enumerate(operate.detected_box_labels) if target == string][0]
     target_x, _, _, target_height = operate.detector_output[target_idx][1]
@@ -446,7 +450,7 @@ def drive_to_target(operate, target):
         operate.detect_target()
         if len(operate.lms) == 0: 
             print("lost sight of target")
-            break 
+            break #need to re-do path planing because no longer en-route to waypoint.  
         target_idx = [idx for idx, string in enumerate(operate.detected_box_labels) if target == string][0]
         _, _, _, target_height = operate.detector_output[target_idx][1]
         print(f"target_height = {target_height}")
@@ -458,10 +462,15 @@ def drive_to_target(operate, target):
     
     #if the robot made it to the marker 
     if target_height >= 80: 
-        return True
+        print("found fruit target")
+        return 1 #true
+    elif  len(operate.lms) == 0:
+        print("failed to drive towards target")
+        return 2 
     else: 
         print("failed to drive towards target")
-        return False
+        return 0 #false
+    #returns 0,1,or 2
 
 
 # main loop
