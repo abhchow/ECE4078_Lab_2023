@@ -467,14 +467,14 @@ def drive_to_target(operate, target):
 # main loop
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Fruit searching")
-    parser.add_argument("--map", type=str, default='ryanhouse_full.txt') # change to 'M4_true_map_part.txt' for lv2&3
+    parser.add_argument("--map", type=str, default='party_room_map.txt') # change to 'M4_true_map_part.txt' for lv2&3
     parser.add_argument("--ip", metavar='', type=str, default='192.168.50.1')
     parser.add_argument("--port", metavar='', type=int, default=8080)
     #copy over from operate, did not copy save/play data
     parser.add_argument("--calib_dir", type=str, default="calibration/param/")
     parser.add_argument("--save_data", action='store_true')
     parser.add_argument("--play_data", action='store_true')
-    parser.add_argument("--yolo_model", default='YOLO/model/yolov8_model_kmart.pt') #USING KMART YOLO MODEL 
+    parser.add_argument("--yolo_model", default='YOLO/model/yolov8_model.pt') #USING KMART YOLO MODEL 
     args, _ = parser.parse_known_args()
 
     # read in the true map
