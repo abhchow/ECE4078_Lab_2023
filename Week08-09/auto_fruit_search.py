@@ -358,7 +358,7 @@ def find_path(startpos, endpos, obstacles_current, n_iter, radius, stepSize, bou
     shortest_path = (rrt.dijkstra(rrt_star_graph))[:-1]
     return rrt_star_graph, shortest_path
 
-def marker_close(operate, distance_threshold=65):
+def marker_close(operate, distance_threshold=80):
     corners, ids, rejected = cv2.aruco.detectMarkers(operate.img, operate.aruco_det.aruco_dict, parameters=operate.aruco_det.aruco_params)
     if len(corners) != 0: 
         for box in corners[0]:
@@ -486,11 +486,11 @@ if __name__ == "__main__":
     fruits_true_pos_tuple = [tuple(array) for array in fruits_true_pos]  
     aruco_true_pos_tuple = [tuple(array) for array in aruco_true_pos]
     obstacles_tuple = fruits_true_pos_tuple+aruco_true_pos_tuple
-    n_iter=400 #make sure not too long
+    n_iter=300 #make sure not too long
     radius=0.30 #for clearance of obsticals. Large radius because penguin Pi itself is large, 
     stepSize= 0.7 #need large stepsize
     bounds = (-1.4, 1.4, -1.4, 1.4)
-    goal_radius = 0.40 #marginally less than 0.5m so that robot is fully within the goal. 
+    goal_radius = 0.20 #marginally less than 0.5m so that robot is fully within the goal. 
 
 
     plot_tree = True
@@ -507,6 +507,13 @@ if __name__ == "__main__":
     #run YOLO object detector (previously initiated with press of a key button)
     operate.command['inference'] = True 
 
+    measurements = [None]*len(aruco_true_pos)
+    for i in range(len(aruco_true_pos)):
+        measurements[i] = measure.Marker([[aruco_true_pos[i][0]], [aruco_true_pos[i][1]]], i+1)
+    
+    operate.ekf.add_landmarks(measurements)
+
+    # operate.ekf.add_landmarks()
     #loop to extract current shopping item
     for shop_item in iter(search_list):
         print("\n ------------------------------------------")
@@ -525,7 +532,7 @@ if __name__ == "__main__":
         startpos = (robot_pose[0], robot_pose[1])
 
         rrt_star_graph, shortest_path = find_path(startpos, endpos, obstacles_current, n_iter, radius, stepSize, bounds, goal_radius)     
-        #print_path(rrt_star_graph, shortest_path, f"original path to {shop_item}")  KEEP THIS COMMENTED FOR BEST ACCURACY    
+        print_path(rrt_star_graph, shortest_path, f"original path to {shop_item}")  #KEEP THIS COMMENTED FOR BEST ACCURACY    
 
         operate.control_clock = time.time()
 
@@ -567,20 +574,20 @@ if __name__ == "__main__":
                     robot_pose=get_robot_pose()
                     [waypoint_arrived,dist_min]=distance_from_waypoint(waypoint, robot_pose, dist_min)
                     #if a target item is seen in the detected fruitss
-                    if shop_item in operate.detected_box_labels: 
-                        print(f"Target {shop_item} in sight")
-                        target_in_sight_counter += 1
-                        #if the target is reliably in sight
-                        if target_in_sight_counter > 3:
-                            #stop and drive to target 
-                            update_command(stop=True)
-                            drive_meas = operate.control()
-                            operate.update_slam(drive_meas)
-                            print(f"Driving towards target")
-                            drive_to_target_success = drive_to_target(operate, shop_item)
-                            if drive_to_target_success: 
-                                print(f"Made it to target")
-                                waypoint_arrived = True 
+                    # if shop_item in operate.detected_box_labels: 
+                    #     print(f"Target {shop_item} in sight")
+                    #     target_in_sight_counter += 1
+                    #     #if the target is reliably in sight
+                    #     if target_in_sight_counter > 3:
+                    #         #stop and drive to target 
+                    #         update_command(stop=True)
+                    #         drive_meas = operate.control()
+                    #         operate.update_slam(drive_meas)
+                    #         print(f"Driving towards target")
+                    #         drive_to_target_success = drive_to_target(operate, shop_item)
+                    #         if drive_to_target_success: 
+                    #             print(f"Made it to target")
+                    #             waypoint_arrived = True 
                     #print(f'robot pos is {robot_pose[0],robot_pose[1], clamp_angle(robot_pose[2])*180/np.pi} --- Driving Fwd')
 
                 #if the robot is too close to a marker, stop and find a new shortest path  
@@ -592,7 +599,7 @@ if __name__ == "__main__":
                     robot_pose = get_robot_pose()
                     startpos = (robot_pose[0], robot_pose[1])
                     rrt_star_graph, shortest_path  = find_path(startpos, endpos, obstacles_current, n_iter, radius, stepSize, bounds, goal_radius)
-                    #print_path(rrt_star_graph, shortest_path, f"New path to {shop_item}")
+                    print_path(rrt_star_graph, shortest_path, f"New path to {shop_item}")
                     #start the for loop again with the new shortest_path
                     break 
 
@@ -601,7 +608,7 @@ if __name__ == "__main__":
                     update_command(stop=True)
                     drive_meas = operate.control() 
                     operate.update_slam(drive_meas)
-                    print("Arrived at Waypoint")
+                    print(f"Arrived at Waypoint: {waypoint}\n    with current pose {get_robot_pose()}")                    
                     #if the current waypoint is also the final waypoint 
                     if waypoint == shortest_path[-1]: 
                         #setting this to true will cancel the while loop and move onto the next shop_item
