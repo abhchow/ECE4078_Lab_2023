@@ -582,29 +582,29 @@ if __name__ == "__main__":
                     robot_pose=get_robot_pose()
                     [waypoint_arrived,dist_min]=distance_from_waypoint(waypoint, robot_pose, dist_min)
                     #if a target item is seen in the detected fruitss
-                    if shop_item in operate.detected_box_labels: 
-                        print(f"Target {shop_item} in sight")
-                        target_in_sight_counter += 1
-                        #if the target is reliably in sight
-                        if target_in_sight_counter > 3:
-                            #stop and drive to target 
-                            update_command(stop=True)
-                            drive_meas = operate.control()
-                            operate.update_slam(drive_meas)
-                            print(f"Driving towards target")
-                            #drive to target gives 0=false, 1=success, 2=lost sight
-                            drive_to_target_success = drive_to_target(operate, shop_item)
-                            if drive_to_target_success==1: 
-                                print(f"Made it to target")
-                                waypoint_arrived = True
-                            else:
-                                waypoint_arrived = False #trigger new pathplanning
-                                break #exits both if and while loop --> goes to if marker_close
+                    # if shop_item in operate.detected_box_labels: 
+                    #     print(f"Target {shop_item} in sight")
+                    #     target_in_sight_counter += 1
+                    #     #if the target is reliably in sight
+                    #     if target_in_sight_counter > 3:
+                    #         #stop and drive to target 
+                    #         update_command(stop=True)
+                    #         drive_meas = operate.control()
+                    #         operate.update_slam(drive_meas)
+                    #         print(f"Driving towards target")
+                    #         #drive to target gives 0=false, 1=success, 2=lost sight
+                    #         drive_to_target_success = drive_to_target(operate, shop_item)
+                    #         if drive_to_target_success==1: 
+                    #             print(f"Made it to target")
+                    #             waypoint_arrived = True
+                    #         else:
+                    #             waypoint_arrived = False #trigger new pathplanning
+                    #             break #exits both if and while loop --> goes to if marker_close
 
                     #print(f'robot pos is {robot_pose[0],robot_pose[1], clamp_angle(robot_pose[2])*180/np.pi} --- Driving Fwd')
 
                 #if the robot is too close to a marker, stop and find a new shortest path  
-                if marker_close(operate) or drive_to_target_success==2: 
+                if marker_close(operate): # or drive_to_target_success==2: 
                     update_command(stop=True)
                     drive_meas = operate.control()
                     operate.update_slam(drive_meas) 
@@ -630,19 +630,19 @@ if __name__ == "__main__":
                         print(f"Arrived at {shop_item}")
                         print("--------------------------------------\n")
                         # #relocalise the robot after arriving at a shop item   
-                        # print(f"Relocalising...")
-                        # turn_angle = 2*np.pi
-                        # original_angle = robot_pose[2]
-                        # while angle_diff < turn_angle: 
-                        #     operate.take_pic()
-                        #     update_command(turn_left=True) 
-                        #     drive_meas = operate.control()
-                        #     operate.update_slam(drive_meas)
-                        #     robot_pose = get_robot_pose()
-                        #     current_angle = robot_pose[2] 
-                        #     angle_diff = abs(original_angle-current_angle)
-                        # print("Finishing localising.")
-                        # print("--------------------------------------\n")
+                        print(f"Relocalising...")
+                        turn_angle = 2*np.pi
+                        original_angle = robot_pose[2]
+                        while angle_diff < turn_angle: 
+                            operate.take_pic()
+                            update_command(turn_left=True) 
+                            drive_meas = operate.control()
+                            operate.update_slam(drive_meas)
+                            robot_pose = get_robot_pose()
+                            current_angle = robot_pose[2] 
+                            angle_diff = abs(original_angle-current_angle)
+                        print("Finishing localising.")
+                        print("--------------------------------------\n")
     
 
         #after reaching endpoint should confirm target with YOLO
