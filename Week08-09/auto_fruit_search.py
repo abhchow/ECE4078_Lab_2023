@@ -408,10 +408,7 @@ def print_path(rrt_star_graph, shortest_path, fig_name):
     plt.savefig(f"./graphs/rrt_graph_{str(fig_name)}.png")
 
 def drive_to_target(operate, target): 
-
     #add new
-    ret_var=0 #false
-
     #long winded way to get target values in case more fruits pop up in the detected box labels (even due to background)
     target_idx = [idx for idx, string in enumerate(operate.detected_box_labels) if target == string][0]
     target_x, _, _, target_height = operate.detector_output[target_idx][1]
@@ -541,7 +538,7 @@ if __name__ == "__main__":
         startpos = (robot_pose[0], robot_pose[1])
 
         rrt_star_graph, shortest_path = find_path(startpos, endpos, obstacles_current, n_iter, radius, stepSize, bounds, goal_radius)     
-        print_path(rrt_star_graph, shortest_path, f"original path to {shop_item}")  #KEEP THIS COMMENTED FOR BEST ACCURACY    
+        #print_path(rrt_star_graph, shortest_path, f"original path to {shop_item}")  KEEP THIS COMMENTED FOR BEST ACCURACY    
 
         operate.control_clock = time.time()
 
@@ -572,7 +569,9 @@ if __name__ == "__main__":
 
                 dist_min=np.ones((1,5))*1e3 #very small number init- check postive upward trend, use for moving average
                 waypoint_arrived = False
-                target_in_sight_counter = 0 
+                target_in_sight_counter = 0
+                drive_to_target_success=0 #default 0-false value
+
                 while not waypoint_arrived and not marker_close(operate):
                     operate.take_pic()
                     update_command(drive_forward=True)
@@ -583,32 +582,37 @@ if __name__ == "__main__":
                     robot_pose=get_robot_pose()
                     [waypoint_arrived,dist_min]=distance_from_waypoint(waypoint, robot_pose, dist_min)
                     #if a target item is seen in the detected fruitss
-                    # if shop_item in operate.detected_box_labels: 
-                    #     print(f"Target {shop_item} in sight")
-                    #     target_in_sight_counter += 1
-                    #     #if the target is reliably in sight
-                    #     if target_in_sight_counter > 3:
-                    #         #stop and drive to target 
-                    #         update_command(stop=True)
-                    #         drive_meas = operate.control()
-                    #         operate.update_slam(drive_meas)
-                    #         print(f"Driving towards target")
-                    #         drive_to_target_success = drive_to_target(operate, shop_item)
-                    #         if drive_to_target_success: 
-                    #             print(f"Made it to target")
-                    #             waypoint_arrived = True 
+                    if shop_item in operate.detected_box_labels: 
+                        print(f"Target {shop_item} in sight")
+                        target_in_sight_counter += 1
+                        #if the target is reliably in sight
+                        if target_in_sight_counter > 3:
+                            #stop and drive to target 
+                            update_command(stop=True)
+                            drive_meas = operate.control()
+                            operate.update_slam(drive_meas)
+                            print(f"Driving towards target")
+                            #drive to target gives 0=false, 1=success, 2=lost sight
+                            drive_to_target_success = drive_to_target(operate, shop_item)
+                            if drive_to_target_success==1: 
+                                print(f"Made it to target")
+                                waypoint_arrived = True
+                            else:
+                                waypoint_arrived = False #trigger new pathplanning
+                                break #exits both if and while loop --> goes to if marker_close
+
                     #print(f'robot pos is {robot_pose[0],robot_pose[1], clamp_angle(robot_pose[2])*180/np.pi} --- Driving Fwd')
 
                 #if the robot is too close to a marker, stop and find a new shortest path  
-                if marker_close(operate): 
+                if marker_close(operate) or drive_to_target_success==2: 
                     update_command(stop=True)
                     drive_meas = operate.control()
                     operate.update_slam(drive_meas) 
-                    print("Finding a new shortest path...")
+                    print("Finding a new shortest path...") 
                     robot_pose = get_robot_pose()
                     startpos = (robot_pose[0], robot_pose[1])
                     rrt_star_graph, shortest_path  = find_path(startpos, endpos, obstacles_current, n_iter, radius, stepSize, bounds, goal_radius)
-                    print_path(rrt_star_graph, shortest_path, f"New path to {shop_item}")
+                    #print_path(rrt_star_graph, shortest_path, f"New path to {shop_item}")
                     #start the for loop again with the new shortest_path
                     break 
 
@@ -617,7 +621,7 @@ if __name__ == "__main__":
                     update_command(stop=True)
                     drive_meas = operate.control() 
                     operate.update_slam(drive_meas)
-                    print(f"Arrived at Waypoint: {waypoint}\n    with current pose {get_robot_pose()}")                    
+                    print(f"Arrived at Waypoint: {waypoint}\n    with current pose {get_robot_pose()}") 
                     #if the current waypoint is also the final waypoint 
                     if waypoint == shortest_path[-1]: 
                         #setting this to true will cancel the while loop and move onto the next shop_item
