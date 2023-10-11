@@ -230,44 +230,6 @@ def update_command(drive_forward=False, drive_backward=False, turn_left=False, t
         operate.command['motion'] = [0, 0]
     return
           
-def controller(initial_state, goal_position):
-    #states=[x,y,theta]
-    ########add control
-    K_pv = 0.5
-    K_pw =10
-    K_theta=1.5
-
-    threshold_distance= 0.0005
-    threshold_angle=0.05
-
-    dt= time.time() - operate.control_clock
-    
-    distance_to_goal=get_distance_robot_to_goal(initial_state,goal_position)
-    desired_heading=get_angle_robot_to_goal(initial_state, goal_position)
-    angle_goal_diff=initial_state[2]-goal_position[2]
-
-    while not stop_criteria_met: 
-        
-        wheel_vel_lin = K_pv*distance_to_goal
-        wheel_vel_rot = K_pw*desired_heading+K_theta*angle_goal_diff
-        
-        # Apply control to robot
-        #robot.drive(v_k, w_k, delta_time)
-        drive_to_point(wheel_vel_lin, wheel_vel_rot,dt)
-        new_state = get_robot_pose(wheel_vel_lin,wheel_vel_rot)
-                    
-        distance_to_goal= get_distance_robot_to_goal(new_state, goal_position)
-        desired_heading = get_angle_robot_to_goal(new_state, goal_position)
-        angle_goal_diff=new_state[2]-goal_position[2]
-        
-        #Check for stopping criteria -------------------------------------
-        if (distance_to_goal < threshold_distance) and(angle_goal_diff < threshold_angle):
-            stop_criteria_met = True
-
-    #error=desired_pt- current_pt
-    #control_sig=error*K_gain
-    #x-->error-->controller-->plant-->output
-    #return nothing, already called drive()
 
 #2x controller helper functions
 def get_distance_robot_to_goal(robot_state=np.zeros(3), goal=np.zeros(3)):
@@ -469,7 +431,6 @@ def drive_to_target(operate, target):
         return 0 #false
     #returns 0,1,or 2
 
-
 # main loop
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Fruit searching")
@@ -483,11 +444,14 @@ if __name__ == "__main__":
     parser.add_argument("--yolo_model", default='YOLO/model/yolov8_model.pt') #USING KMART YOLO MODEL 
     args, _ = parser.parse_known_args()
 
+    ppi = PenguinPi(args.ip,args.port)
+
     # read in the true map
     fruits_list, fruits_true_pos, aruco_true_pos = read_true_map(args.map)
     search_list = read_search_list()
     print_target_fruits_pos(search_list, fruits_list, fruits_true_pos)
 
+    
     #currently no visuals added (see pygame in operate.py)
     fruits_true_pos_tuple = [tuple(array) for array in fruits_true_pos]  
     aruco_true_pos_tuple = [tuple(array) for array in aruco_true_pos]
@@ -502,13 +466,9 @@ if __name__ == "__main__":
     plot_tree = True
     # The following is only a skeleton code for semi-auto navigation
 
-
-    #start_pos always at origin
-    # startpos=(0,0)
-
-
     operate = Operate(args) # this is in the wrong place - move it later
     operate.ekf_on = True
+    waypoint = [0.0,0.0] #inital variables
     robot_pose = np.array([0,0,0])
     #run YOLO object detector (previously initiated with press of a key button)
     operate.command['inference'] = True 
@@ -538,123 +498,37 @@ if __name__ == "__main__":
         startpos = (robot_pose[0], robot_pose[1])
 
         rrt_star_graph, shortest_path = find_path(startpos, endpos, obstacles_current, n_iter, radius, stepSize, bounds, goal_radius)     
-        #print_path(rrt_star_graph, shortest_path, f"original path to {shop_item}")  KEEP THIS COMMENTED FOR BEST ACCURACY    
+        print_path(rrt_star_graph, shortest_path, f"original path to {shop_item}")  #KEEP THIS COMMENTED FOR BEST ACCURACY    
 
-        operate.control_clock = time.time()
+    #level 1 run code
+    # The following is only a skeleton code for semi-auto navigation
+    while True:
+        # enter the waypoints
+        # instead of manually enter waypoints, you can give coordinates by clicking on a map, see camera_calibration.py from M2
+        x,y = 0.0,0.0
+        x = input("X coordinate of the waypoint: ")
+        try:
+            x = float(x)
+        except ValueError:
+            print("Please enter a number.")
+            continue
+        y = input("Y coordinate of the waypoint: ")
+        try:
+            y = float(y)
+        except ValueError:
+            print("Please enter a number.")
+            continue
 
-        goal_arrived = False
-        while goal_arrived == False: 
-            
-            #step through waypoint in shortest_path 
-            for waypoint in shortest_path[1:]:
-                angle_arrived = False
-                angle_mav=np.ones((1,5))*1e3
+        # estimate the robot's pose
+        robot_pose = get_robot_pose()
 
-                while not angle_arrived:    
-                    operate.take_pic()
-                    angle_diff = clamp_angle(np.arctan2(waypoint[1]-robot_pose[1], waypoint[0]-robot_pose[0])-robot_pose[2])
-                    if angle_diff>0: 
-                        #turn left
-                        update_command(turn_left=True) #fix mb
-                    else:
-                        #turn right
-                        update_command(turn_right=True)
-                    drive_meas = operate.control() 
-                    operate.update_slam(drive_meas)
-                    robot_pose=get_robot_pose()
-                    [angle_arrived, angle_mav]=angle_mav_from_waypoint(waypoint, robot_pose, angle_mav) #returns boolean    
-                    #print(f'robot pos is {robot_pose[0],robot_pose[1], clamp_angle(robot_pose[2])*180/np.pi} --- Turning')
-                print("Arrived at Angle")
-
-
-                dist_min=np.ones((1,5))*1e3 #very small number init- check postive upward trend, use for moving average
-                waypoint_arrived = False
-                target_in_sight_counter = 0
-                drive_to_target_success=0 #default 0-false value
-
-                while not waypoint_arrived and not marker_close(operate):
-                    operate.take_pic()
-                    update_command(drive_forward=True)
-                    drive_meas = operate.control()
-                    operate.update_slam(drive_meas)
-                    #scan for fruit while driving forward
-                    operate.detect_target() 
-                    robot_pose=get_robot_pose()
-                    [waypoint_arrived,dist_min]=distance_from_waypoint(waypoint, robot_pose, dist_min)
-                    #if a target item is seen in the detected fruitss
-                    if shop_item in operate.detected_box_labels: 
-                        print(f"Target {shop_item} in sight")
-                        target_in_sight_counter += 1
-                        #if the target is reliably in sight
-                        if target_in_sight_counter > 3:
-                            #stop and drive to target 
-                            update_command(stop=True)
-                            drive_meas = operate.control()
-                            operate.update_slam(drive_meas)
-                            print(f"Driving towards target")
-                            #drive to target gives 0=false, 1=success, 2=lost sight
-                            drive_to_target_success = drive_to_target(operate, shop_item)
-                            if drive_to_target_success==1: 
-                                print(f"Made it to target")
-                                waypoint_arrived = True
-                            else:
-                                waypoint_arrived = False #trigger new pathplanning
-                                break #exits both if and while loop --> goes to if marker_close
-
-                    #print(f'robot pos is {robot_pose[0],robot_pose[1], clamp_angle(robot_pose[2])*180/np.pi} --- Driving Fwd')
-
-                #if the robot is too close to a marker, stop and find a new shortest path  
-                if marker_close(operate) or drive_to_target_success==2: 
-                    update_command(stop=True)
-                    drive_meas = operate.control()
-                    operate.update_slam(drive_meas) 
-                    print("Finding a new shortest path...") 
-                    robot_pose = get_robot_pose()
-                    startpos = (robot_pose[0], robot_pose[1])
-                    rrt_star_graph, shortest_path  = find_path(startpos, endpos, obstacles_current, n_iter, radius, stepSize, bounds, goal_radius)
-                    #print_path(rrt_star_graph, shortest_path, f"New path to {shop_item}")
-                    #start the for loop again with the new shortest_path
-                    break 
-
-                #if arrived at a waypoint, stop.  
-                if waypoint_arrived: 
-                    update_command(stop=True)
-                    drive_meas = operate.control() 
-                    operate.update_slam(drive_meas)
-                    print(f"Arrived at Waypoint: {waypoint}\n    with current pose {get_robot_pose()}") 
-                    #if the current waypoint is also the final waypoint 
-                    if waypoint == shortest_path[-1]: 
-                        #setting this to true will cancel the while loop and move onto the next shop_item
-                        goal_arrived = True
-                        print("--------------------------------------\n")
-                        print(f"Arrived at {shop_item}")
-                        print("--------------------------------------\n")
-                        # #relocalise the robot after arriving at a shop item   
-                        # print(f"Relocalising...")
-                        # turn_angle = 2*np.pi
-                        # original_angle = robot_pose[2]
-                        # while angle_diff < turn_angle: 
-                        #     operate.take_pic()
-                        #     update_command(turn_left=True) 
-                        #     drive_meas = operate.control()
-                        #     operate.update_slam(drive_meas)
-                        #     robot_pose = get_robot_pose()
-                        #     current_angle = robot_pose[2] 
-                        #     angle_diff = abs(original_angle-current_angle)
-                        # print("Finishing localising.")
-                        # print("--------------------------------------\n")
-    
-
-        #after reaching endpoint should confirm target with YOLO
-        #operate.Operate.detect_target() #only used w YOLO
-        #self.detector_output= list of lists, box info [label,[x,y,width,height]] for all detected targets in image
-        #once detect, no need to append to map, even if low certainty, so that path-planning will avoid it
-        #add to fruit list, friut true pos (used in planning)
+        # robot drives to the waypoint
+        waypoint = [x,y]
+        drive_to_point(waypoint,robot_pose)
+        print("Finished driving to waypoint: {}; New robot pose: {}".format(waypoint,robot_pose))
 
         # exit
-        operate.pibot.set_velocity([0, 0])
-        # uInput = input("Add a new waypoint? [Y/N]")
-        # if uInput == 'N':
-        #     break
-
-    dummy = 1
+        ppi.set_velocity([0, 0])
+        uInput = input("Add a new waypoint? [Y/N]")
+        if uInput == 'N':
+            break
