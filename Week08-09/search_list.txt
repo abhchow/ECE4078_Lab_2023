@@ -1,5 +1,5 @@
+melon
+apple
 orange
-pumpkin
-potato
-tomato
-lemon
+pear
+melon

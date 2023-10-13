@@ -107,7 +107,7 @@ def read_search_list():
     return search_list
 
 
-def print_target_fruits_pos(search_list, fruit_list, fruit_true_pos):
+def print_target_fruits_pos(search_list, fruit_list, fruit_true_pos_tuple):
     """Print out the target fruits' pos in the search order
 
     @param search_list: search order of the fruits
@@ -115,16 +115,32 @@ def print_target_fruits_pos(search_list, fruit_list, fruit_true_pos):
     @param fruit_true_pos: positions of the target fruits
     """
 
+    # print("Search order:")
+    # n_fruit = 1
+    # for fruit in search_list:
+    #     for i in range(len(fruit_list)):
+    #         if fruit == fruit_list[i]:
+    #             print('{}) {} at [{}, {}]'.format(n_fruit,
+    #                                               fruit,
+    #                                               np.round(fruit_true_pos[i][0], 1),
+    #                                               np.round(fruit_true_pos[i][1], 1)))
+    #     n_fruit += 1
+
     print("Search order:")
+    #loop to extract current shopping item
     n_fruit = 1
-    for fruit in search_list:
-        for i in range(len(fruit_list)):
-            if fruit == fruit_list[i]:
-                print('{}) {} at [{}, {}]'.format(n_fruit,
-                                                  fruit,
-                                                  np.round(fruit_true_pos[i][0], 1),
-                                                  np.round(fruit_true_pos[i][1], 1)))
-        n_fruit += 1
+    for shop_item in iter(search_list):
+        print("\n ------------------------------------------")
+            #search through fruitsmap
+        for i in range(len(fruits_list)):
+            if fruits_list[i]==shop_item: #have found item we need to shop for
+                endpos=fruits_true_pos_tuple[i]
+                #remove end_pos from map_copy
+                # obstacles_current.pop(i)
+        print('{}) {} at {}'.format(n_fruit,
+                                    shop_item,
+                                    np.round(endpos, 1)))  
+        n_fruit+=1
 
 
 # Waypoint navigation
@@ -435,64 +451,101 @@ def drive_to_target(operate, target):
         operate.update_slam(drive_meas)
         operate.detect_target()
         #recalculate the coords of the targets
-        target_idx = [idx for idx, string in enumerate(operate.detected_box_labels) if target == string][0]
-        target_x, _, _, target_height = operate.detector_output[target_idx][1]
-    #after centering on the target, move towards it until a certain height is met OR an aruco marker becomes too close. 
+        #if the target is detected in the current frame
+        if target in operate.detected_box_labels: 
+            target_idx = [idx for idx, string in enumerate(operate.detected_box_labels) if target == string][0]
+            target_x, _, _, target_height = operate.detector_output[target_idx][1]
+        #otherwise, stop the turning 
+        else: 
+            print("Lost sight of the target while turning. Attempting to recover...")
+            #stop the driving 
+            update_command(stop=True)
+            drive_meas = operate.control()
+            operate.update_slam(drive_meas)
+            #take a picture while stopped, and try to detect fruit (more likely to see a fruit when stopped)
+            operate.take_pic()
+            operate.detect_target()
+            #if the target fruit is seen in the image, keep going with the algorithm as normal  
+            if target in operate.detected_box_labels:
+                target_idx = [idx for idx, string in enumerate(operate.detected_box_labels) if target == string][0]
+                target_x, _, _, target_height = operate.detector_output[target_idx][1]
+            #otherwise, assume the target is lost and abort the function 
+            else: 
+                print("Couldn't recover sight of the target. Failed to turn towards target")
+                return False #need to re-do path planing because no longer en-route to waypoint.  
+    # after centering on the target, move towards it until a certain height is met OR an aruco marker becomes too close. 
     # Currently a hardcoded value and does not account for the different heights of the fruit  
-    while target_height < 80 and not marker_close(operate): 
+    while target_height < 80 and not marker_close(operate):
         update_command(drive_forward=True)
         operate.take_pic()
         drive_meas = operate.control()
         operate.update_slam(drive_meas) 
         operate.detect_target()
-        if len(operate.lms) == 0: 
-            print("lost sight of target")
-            break #need to re-do path planing because no longer en-route to waypoint.  
-        target_idx = [idx for idx, string in enumerate(operate.detected_box_labels) if target == string][0]
-        _, _, _, target_height = operate.detector_output[target_idx][1]
-        print(f"target_height = {target_height}")
-    
-    #stop the driving 
-    update_command(stop=True)
-    drive_meas = operate.control()
-    operate.update_slam(drive_meas)
-    
-    #if the robot made it to the marker 
-    if target_height >= 80: 
-        print("found fruit target")
-        return 1 #true
-    elif  len(operate.lms) == 0:
-        print("failed to drive towards target")
-        return 2 
-    else: 
-        print("failed to drive towards target")
-        return 0 #false
-    #returns 0,1,or 2
+        if target in operate.detected_box_labels: 
+            target_idx = [idx for idx, string in enumerate(operate.detected_box_labels) if target == string][0]
+            _, _, _, target_height = operate.detector_output[target_idx][1]
+            #if arrived at the fruit
+            if target_height >= 80: 
+                #stop the driving 
+                update_command(stop=True)
+                drive_meas = operate.control()
+                operate.update_slam(drive_meas)
+                print("Successfully arrived at target fruit")
+                return True            
+        else: 
+            print("Lost sight of the target while driving forward. Attempting to recover...")
+            #stop the driving 
+            update_command(stop=True)
+            drive_meas = operate.control()
+            operate.update_slam(drive_meas)
+            #take a picture while stopped, and try to detect fruit (more likely to see a fruit when stopped)
+            operate.take_pic()
+            operate.detect_target()
+            #if the target fruit is seen in the image, keep going with the algorithm as normal  
+            if target in operate.detected_box_labels:
+                target_idx = [idx for idx, string in enumerate(operate.detected_box_labels) if target == string][0]
+                _, _, _, target_height = operate.detector_output[target_idx][1]
+                print(f"target_height = {target_height}")
+                #if arrived at the fruit
+                if target_height >= 80: 
+                    #stop the driving 
+                    update_command(stop=True)
+                    drive_meas = operate.control()
+                    operate.update_slam(drive_meas)
+                    print("Successfully arrived at target fruit")
+                    return True
+            #otherwise, assume the target is lost and abort the function 
+            else: 
+                print("Couldn't recover sight of the target. Failed to drive towards")
+                return False #need to re-do path planing because no longer en-route to waypoint.  
 
 
 # main loop
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Fruit searching")
-    parser.add_argument("--map", type=str, default='M4_true_map_full.txt') # change to 'M4_true_map_part.txt' for lv2&3
+    parser.add_argument("--map", type=str, default='satG15.txt') # change to 'M4_true_map_part.txt' for lv2&3
     parser.add_argument("--ip", metavar='', type=str, default='192.168.50.1')
     parser.add_argument("--port", metavar='', type=int, default=8080)
     #copy over from operate, did not copy save/play data
     parser.add_argument("--calib_dir", type=str, default="calibration/param/")
     parser.add_argument("--save_data", action='store_true')
     parser.add_argument("--play_data", action='store_true')
-    parser.add_argument("--yolo_model", default='YOLO/model/yolov8_model.pt') #USING KMART YOLO MODEL 
+    parser.add_argument("--yolo_model", default='YOLO/model/yolov8_model_kmart.pt') #USING KMART YOLO MODEL 
     args, _ = parser.parse_known_args()
 
     # read in the true map
     fruits_list, fruits_true_pos, aruco_true_pos = read_true_map(args.map)
     search_list = read_search_list()
-    print_target_fruits_pos(search_list, fruits_list, fruits_true_pos)
 
     #currently no visuals added (see pygame in operate.py)
     fruits_true_pos_tuple = [tuple(array) for array in fruits_true_pos]  
     aruco_true_pos_tuple = [tuple(array) for array in aruco_true_pos]
     obstacles_tuple = fruits_true_pos_tuple+aruco_true_pos_tuple
-    n_iter=300 #make sure not too long
+
+    print_target_fruits_pos(search_list, fruits_list, fruits_true_pos_tuple)
+
+
+    n_iter=400 #make sure not too long
     radius=0.30 #for clearance of obsticals. Large radius because penguin Pi itself is large, 
     stepSize= 0.7 #need large stepsize
     bounds = (-1.4, 1.4, -1.4, 1.4)
@@ -503,7 +556,7 @@ if __name__ == "__main__":
     # The following is only a skeleton code for semi-auto navigation
 
 
-    #start_pos always at origin
+    #start_pos always at origin00000
     # startpos=(0,0)
 
 
@@ -538,11 +591,13 @@ if __name__ == "__main__":
         startpos = (robot_pose[0], robot_pose[1])
 
         rrt_star_graph, shortest_path = find_path(startpos, endpos, obstacles_current, n_iter, radius, stepSize, bounds, goal_radius)     
-        #print_path(rrt_star_graph, shortest_path, f"original path to {shop_item}")  KEEP THIS COMMENTED FOR BEST ACCURACY    
+        #print_path(rrt_star_graph, shortest_path, f"original path to {shop_item}")  #KEEP THIS COMMENTED FOR BEST ACCURACY    
 
         operate.control_clock = time.time()
 
         goal_arrived = False
+        replan = False 
+        waypoint_arrived = False
         while goal_arrived == False: 
             
             #step through waypoint in shortest_path 
@@ -568,46 +623,54 @@ if __name__ == "__main__":
 
 
                 dist_min=np.ones((1,5))*1e3 #very small number init- check postive upward trend, use for moving average
-                waypoint_arrived = False
                 target_in_sight_counter = 0
                 drive_to_target_success=0 #default 0-false value
 
-                while not waypoint_arrived and not marker_close(operate):
+                while not waypoint_arrived and not replan==True and not goal_arrived:
+                    #drive forward
                     operate.take_pic()
                     update_command(drive_forward=True)
                     drive_meas = operate.control()
                     operate.update_slam(drive_meas)
-                    #scan for fruit while driving forward
-                    operate.detect_target() 
-                    robot_pose=get_robot_pose()
-                    [waypoint_arrived,dist_min]=distance_from_waypoint(waypoint, robot_pose, dist_min)
-                    #if a target item is seen in the detected fruitss
-                    # if shop_item in operate.detected_box_labels: 
-                    #     print(f"Target {shop_item} in sight")
-                    #     target_in_sight_counter += 1
-                    #     #if the target is reliably in sight
-                    #     if target_in_sight_counter > 3:
-                    #         #stop and drive to target 
-                    #         update_command(stop=True)
-                    #         drive_meas = operate.control()
-                    #         operate.update_slam(drive_meas)
-                    #         print(f"Driving towards target")
-                    #         #drive to target gives 0=false, 1=success, 2=lost sight
-                    #         drive_to_target_success = drive_to_target(operate, shop_item)
-                    #         if drive_to_target_success==1: 
-                    #             print(f"Made it to target")
-                    #             waypoint_arrived = True
-                    #         else:
-                    #             waypoint_arrived = False #trigger new pathplanning
-                    #             break #exits both if and while loop --> goes to if marker_close
+                    #if the robot is about to bump into an aruco marker 
+                    if marker_close(operate): 
+                        replan = True  
+                    #otherwise, proceed. 
+                    else: 
+                        #check the distance from the waypoint
+                        robot_pose=get_robot_pose()
+                        [waypoint_arrived,dist_min]=distance_from_waypoint(waypoint, robot_pose, dist_min)
+                        #if arrived at a waypoint 
+                        if waypoint_arrived: 
+                            waypoint_arrived = True 
+                        else: 
+                            #detect fruit in current image
+                            operate.detect_target()
+                            #if a target item is seen in the detected fruits
+                            if shop_item in operate.detected_box_labels: 
+                                print(f"Target {shop_item} in sight")
+                                #stop and drive to target 
+                                update_command(stop=True)
+                                drive_meas = operate.control()
+                                operate.update_slam(drive_meas)
+                                #drive to target gives 0=false, 1=success, 2=lost sight
+                                print("Attempting to drive to target...")
+                                drive_to_target_success = drive_to_target(operate, shop_item)
+                                if drive_to_target_success==True: 
+                                    print(f"Made it to target")
+                                    goal_arrived = True 
+                                else: 
+                                    replan = True #trigger new pathplanning 
 
                     #print(f'robot pos is {robot_pose[0],robot_pose[1], clamp_angle(robot_pose[2])*180/np.pi} --- Driving Fwd')
 
                 #if the robot is too close to a marker, stop and find a new shortest path  
-                if marker_close(operate): # or drive_to_target_success==2: 
+                if replan == True: 
+                    #stop the robots motion 
                     update_command(stop=True)
                     drive_meas = operate.control()
                     operate.update_slam(drive_meas) 
+                    #find a new shortest path 
                     print("Finding a new shortest path...") 
                     robot_pose = get_robot_pose()
                     startpos = (robot_pose[0], robot_pose[1])
@@ -618,6 +681,7 @@ if __name__ == "__main__":
 
                 #if arrived at a waypoint, stop.  
                 if waypoint_arrived: 
+                    #stop the robots motion 
                     update_command(stop=True)
                     drive_meas = operate.control() 
                     operate.update_slam(drive_meas)
@@ -629,7 +693,7 @@ if __name__ == "__main__":
                         print("--------------------------------------\n")
                         print(f"Arrived at {shop_item}")
                         print("--------------------------------------\n")
-                        # #relocalise the robot after arriving at a shop item   
+                        #relocalise the robot after arriving at a shop item   
                         print(f"Relocalising...")
                         turn_angle = 2*np.pi
                         original_angle = robot_pose[2]
@@ -642,6 +706,7 @@ if __name__ == "__main__":
                             current_angle = robot_pose[2] 
                             angle_diff = abs(original_angle-current_angle)
                         print("Finishing localising.")
+                        print(f"Position after localising: {robot_pose}")
                         print("--------------------------------------\n")
     
 
