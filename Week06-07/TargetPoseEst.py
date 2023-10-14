@@ -5,13 +5,12 @@ import os
 import ast
 import cv2
 from YOLO.detector import Detector
-from sklearn.cluster import KMeans
-from matplotlib  import pyplot as plt
+
 
 # list of target fruits and vegs types
 # Make sure the names are the same as the ones used in your YOLO model
-# TARGET_TYPES = ['orange', 'lemon', 'lime', 'tomato', 'capsicum', 'potato', 'pumpkin', 'garlic']
-TARGET_TYPES = ['orange', 'apple', 'kiwi', 'banana', 'pear', 'melon', 'potato']
+TARGET_TYPES = ['orange', 'lemon', 'lime', 'tomato', 'capsicum', 'potato', 'pumpkin', 'garlic']
+#TARGET_TYPES = ['orange', 'apple', 'kiwi', 'banana', 'pear', 'melon', 'potato']
 
 
 def estimate_pose(camera_matrix, obj_info, robot_pose):
@@ -37,19 +36,13 @@ def estimate_pose(camera_matrix, obj_info, robot_pose):
     # there are 8 possible types of fruits and vegs
     ######### Replace with your codes #########
     # TODO: measure actual sizes of targets [width, depth, height] and update the dictionary of true target dimensions
-    # target_dimensions_dict = {'orange': [1.0,1.0,0.04], 'lemon': [1.0,1.0,0.04], 
-    #                           'lime': [1.0,1.0,0.04], 'tomato': [1.0,1.0,0.04], 
-    #                           'capsicum': [1.0,1.0,0.04], 'potato': [1.0,1.0,0.04], 
-    #                           'pumpkin': [1.0,1.0,0.04], 'garlic': [1.0,1.0,0.04]}
-    
-    target_dimensions_dict = {'orange': [0.05,0.05,0.05], 'apple': [1.0,1.0,0.05], 
-                              'kiwi': [1.0,1.0,0.047], 'banana': [1.0,1.0,0.047], 
-                              'pear': [1.0,1.0,0.075], 'melon': [1.0,1.0,0.055], 
-                              'potato': [1.0,1.0,0.04]}
-
+    target_dimensions_dict = {'orange': [1.0,1.0,0.073], 'lemon': [1.0,1.0,0.041], 
+                              'lime': [1.0,1.0,0.052], 'tomato': [1.0,1.0,0.07], 
+                              'capsicum': [1.0,1.0,0.097], 'potato': [1.0,1.0,0.062], 
+                              'pumpkin': [1.0,1.0,0.08], 'garlic': [1.0,1.0,0.075]}
     #########
 
-        # estimate target pose using bounding box and robot pose
+    # estimate target pose using bounding box and robot pose
     target_class = obj_info[0]     # get predicted target label of the box
     target_box = obj_info[1]       # get bounding box measures: [x,y,width,height]
     true_height = target_dimensions_dict[target_class][2]   # look up true height of by class label
@@ -57,29 +50,21 @@ def estimate_pose(camera_matrix, obj_info, robot_pose):
     # compute pose of the target based on bounding box info, true object height, and robot's pose
     pixel_height = target_box[3]
     pixel_center = target_box[0]
-    distance = true_height/pixel_height * focal_length  # estimated distance between the robot and the centre of the image plane based on height
-    # training image size 320x240p
-    image_width = 320 # change this if your training image is in a different size (check details of pred_0.png taken by your robot)
-    x_shift = image_width/2 - pixel_center              # x distance between bounding box centre and centreline in camera view
+    distance = true_height/pixel_height * focal_length  # estimated distance between the object and the robot based on height
+    # image size 640x480 pixels, 640/2=320
+    x_shift = 320/2 - pixel_center              # x distance between bounding box centre and centreline in camera view
     theta = np.arctan(x_shift/focal_length)     # angle of object relative to the robot
-    ang = theta + robot_pose[2]     # angle of object in the world frame
-    
-   # relative object location
-    distance_obj = distance/np.cos(theta) # relative distance between robot and object
-    x_relative = distance_obj * np.cos(theta) # relative x pose
-    y_relative = distance_obj * np.sin(theta) # relative y pose
-    relative_pose = {'x': x_relative, 'y': y_relative}
-    #print(f'relative_pose: {relative_pose}')
+    horizontal_relative_distance = distance * np.sin(theta)     # relative distance between robot and object on x axis
+    vertical_relative_distance = distance * np.cos(theta)       # relative distance between robot and object on y axis
+    relative_pose = {'y': vertical_relative_distance, 'x': horizontal_relative_distance}    # relative object location
 
-    # location of object in the world frame using rotation matrix
-    delta_x_world = x_relative * np.cos(robot_pose[2]) - y_relative * np.sin(robot_pose[2])
-    delta_y_world = x_relative * np.sin(robot_pose[2]) + y_relative * np.cos(robot_pose[2])
-    # add robot pose with delta target pose
-    target_pose = {'y': (robot_pose[1]+delta_y_world)[0],
-                   'x': (robot_pose[0]+delta_x_world)[0]}
-    #print(f'delta_x_world: {delta_x_world}, delta_y_world: {delta_y_world}')
-    #print(f'target_pose: {target_pose}')
-    return target_pose      
+    ang = theta + robot_pose[2]     # angle of object in the world frame
+
+    # location of object in the world frame
+    target_pose = {'y': (robot_pose[1]+relative_pose['y']*np.sin(ang))[0],
+                   'x': (robot_pose[0]+relative_pose['x']*np.cos(ang))[0]}
+
+    return target_pose
 
 
 def merge_estimations(target_pose_dict):
@@ -96,48 +81,50 @@ def merge_estimations(target_pose_dict):
     ######### Replace with your codes #########
     # TODO: replace it with a solution to merge the multiple occurrences of the same class type (e.g., by a distance threshold)
 
-    #target_pose_dict is just #will have {"orange_0": {"y": num,"x": num}, "orange_1":...}
-    #replace prev func w k-mean
-    data_array=[]
-    data_headings=[]
+    # initialising values
+    target_partitions={}    # partition into each different object (fruit)
+    # target_est={}           
+    num_poses = len(target_pose_dict)
+    checked = [False]*num_poses
+    threshold = 0.13
 
-    for index, (key, value) in enumerate(target_pose_dict.items()):
-        head, sep, tail = key.partition('_')
+    # partitioning into each different object
+    for index, (key_old, value) in enumerate(target_pose_dict.items()):
+        head, sep, tail = key_old.partition('_')
         key=head
-        data_array.append([value['x'],value['y']])
-        data_headings.append(head)
 
-    data_array=np.array(data_array)
-    kmeans=KMeans(n_clusters=8,random_state=0,n_init="auto").fit(data_array)
-    print(kmeans.labels_)
-    print(kmeans.cluster_centers_)
-    plt.figure()
-    plt.scatter(data_array[:,0],data_array[:,1])
-    plt.scatter(kmeans.cluster_centers_[:,0],kmeans.cluster_centers_[:,1])
+        if not checked[index]:  #boolean to make sure we don't double up on something we already checked
+            if key not in target_partitions: #if the object doesn't exist then create a list for it
+                target_partitions[key] = [] 
+            target_partitions[key].append(value)
 
-    current_target=[]
-    #need to equate cluster index 0 with its position
-    for i in range(len(data_headings)):
-        temp_heading=data_headings[i]
-        cluster_num=kmeans.labels_[i]
-        cluster_centre=kmeans.cluster_centers_[cluster_num]
-        #target est update will update repeated clusters, need to add new for repeated fruits
-        if temp_heading in current_target:#true, string overlap
-            #check if not same cluster
-            if (cluster_centre[0] != target_est[temp_heading+'_'+str(0)]['x']) and (cluster_centre[1] !=target_est[temp_heading+'_'+str(0)]['y']):
-                print(cluster_centre)
-                #assumes max 2 of each fruit
-                target_est.update({temp_heading+'_'+str(1):{'y':cluster_centre[1],'x':cluster_centre[0]}})
-            else:
-                pass#same cluster 
-        else:
-            target_est.update({temp_heading+'_'+str(0):{'y':cluster_centre[1],'x':cluster_centre[0]}})
-        #update current_target list at end
-        current_target=[]
-        for index, (key, value) in enumerate(target_est.items()): #loop target_est to check if exist
-            head, sep, tail = key.partition('_')
-            current_target.append(head)
-    #########
+    # merges all the close objects together
+    for key, value in target_partitions.items():
+        i=0
+        while i < len(value)-1:
+            curr = value[i]
+            curr_pos = np.array([curr['x'], curr['y']])
+
+            j = i+1
+            while j < len(value):
+                next = value[j]
+                next_pos = np.array([next['x'], next['y']])
+                dist = np.linalg.norm(curr_pos-next_pos)
+                if dist < threshold:
+                    curr = {'y': (curr['y']+next['y'])/2, 'x': (curr['x']+next['x'])/2}
+                    curr_pos = np.array([curr['x'], curr['y']])
+                    target_partitions[key][i]=curr
+                    target_partitions[key].pop(j)
+                else:
+                    j = j+1
+            i = i+1
+
+    # marking a new dict with each separate
+    for key, value in target_partitions.items():
+        for i in range(len(value)):
+            new_key = key+'_'+str(i)
+            target_est[new_key] = value[i]
+   
     return target_est
 
 
