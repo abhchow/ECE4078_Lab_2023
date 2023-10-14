@@ -28,6 +28,7 @@ from matplotlib import collections  as mc
 from matplotlib.patches import Circle
 import matplotlib.animation as animation 
 from collections import deque
+from TargetPoseEst import estimate_pose
 
 # import utility functions
 sys.path.insert(0, "util")
@@ -374,7 +375,7 @@ def find_path(startpos, endpos, obstacles_current, n_iter, radius, stepSize, bou
     shortest_path = (rrt.dijkstra(rrt_star_graph))[:-1]
     return rrt_star_graph, shortest_path
 
-def marker_close(operate, distance_threshold=80):
+def marker_close(operate, distance_threshold_pixels):
     corners, ids, rejected = cv2.aruco.detectMarkers(operate.img, operate.aruco_det.aruco_dict, parameters=operate.aruco_det.aruco_params)
     if len(corners) != 0: 
         for box in corners[0]:
@@ -387,10 +388,10 @@ def marker_close(operate, distance_threshold=80):
             y_diff2 = abs(corner2[1] - corner1[1])
             y_diff3 = abs(corner3[1] - corner2[1])
             y_diff4 = abs(corner0[1] - corner3[1])
-            if (y_diff1>distance_threshold or 
-                y_diff2>distance_threshold or 
-                y_diff3>distance_threshold or
-                y_diff4>distance_threshold):
+            if (y_diff1>distance_threshold_pixels or 
+                y_diff2>distance_threshold_pixels or 
+                y_diff3>distance_threshold_pixels or
+                y_diff4>distance_threshold_pixels):
                 #the markers are too close to the camera 
                 return True 
             else: 
@@ -435,7 +436,7 @@ def drive_to_target(operate, target):
     center_x = operate.img.shape[1]/2
     print(center_x)
     #define a threshold in which the target is close enough to the center 
-    tolerance_factor = 5
+    tolerance_factor = 10
     #threshold is proportional to target height. if far, small threshod. if close, large threshold
     threshold = target_height/tolerance_factor
     #repeat movement while the target is away from the center. 
@@ -475,7 +476,8 @@ def drive_to_target(operate, target):
                 return False #need to re-do path planing because no longer en-route to waypoint.  
     # after centering on the target, move towards it until a certain height is met OR an aruco marker becomes too close. 
     # Currently a hardcoded value and does not account for the different heights of the fruit  
-    while target_height < 80 and not marker_close(operate):
+
+    while target_height < 80 and not marker_close(operate, aruco_distance_threshold_pixels) and not fruit_close(operate, shop_item, fruit_distance_threshold_meters, target_dimensions_dict, camera_matrix) :
         update_command(drive_forward=True)
         operate.take_pic()
         drive_meas = operate.control()
@@ -519,6 +521,33 @@ def drive_to_target(operate, target):
                 print("Couldn't recover sight of the target. Failed to drive towards")
                 return False #need to re-do path planing because no longer en-route to waypoint.  
 
+def dist_to_fruit(fruit, camera_matrix,target_dimensions_dict):
+    fruit_label = fruit[0]
+    focal_length = camera_matrix[0][0]
+    _, _, _, fruit_detected_height_pixels = fruit[1]
+    fruit_true_height_meters = target_dimensions_dict[fruit_label][2]
+    distance = fruit_true_height_meters/fruit_detected_height_pixels * focal_length
+    return distance
+
+def fruit_close(operate, current_target, distance_threshold_meters, target_dimensions_dict, camera_matrix): 
+    #if there is a fruit currently detected 
+    focal_length = camera_matrix[0][0]
+    if len(operate.detected_box_labels) != 0:
+        #check the height of all fruit 
+        for fruit in operate.detector_output: #fruit= ['label, [x,y,w,h]]
+            #if the fruit label is not the shop item we are looking for: 
+            if fruit[0] != current_target: 
+                distance=dist_to_fruit(fruit,camera_matrix,target_dimensions_dict)# estimated distance between the object and the robot based on height
+                print(distance)
+                if distance<distance_threshold_meters:
+                    #fruit is too close. return true 
+                    return True
+            #if the fruit label is the shop item we are looking for, then continue to see if there are other detected objects in the way
+            else: 
+                None 
+        return False
+    else: 
+        return False 
 
 # main loop
 if __name__ == "__main__":
@@ -532,6 +561,10 @@ if __name__ == "__main__":
     parser.add_argument("--play_data", action='store_true')
     parser.add_argument("--yolo_model", default='YOLO/model/yolov8_model_kmart.pt') #USING KMART YOLO MODEL 
     args, _ = parser.parse_known_args()
+
+    #read in the camera matrix 
+    fileK = f'calibration/param/intrinsic.txt'
+    camera_matrix = np.loadtxt(fileK, delimiter=',')
 
     # read in the true map
     fruits_list, fruits_true_pos, aruco_true_pos = read_true_map(args.map)
@@ -548,8 +581,18 @@ if __name__ == "__main__":
     n_iter=400 #make sure not too long
     radius=0.30 #for clearance of obsticals. Large radius because penguin Pi itself is large, 
     stepSize= 0.7 #need large stepsize
-    bounds = (-1.4, 1.4, -1.4, 1.4)
-    goal_radius = 0.20 #marginally less than 0.5m so that robot is fully within the goal. 
+    bounds = (-1.35, 1.35, -1.35, 1.35)
+    goal_radius = 0.3 #marginally less than 0.5m so that robot is fully within the goal.
+    # target_dimensions_dict = {'orange': [1.0,1.0,0.073], 'lemon': [1.0,1.0,0.041], 
+    #                           'lime': [1.0,1.0,0.052], 'tomato': [1.0,1.0,0.07], 
+    #                           'capsicum': [1.0,1.0,0.097], 'potato': [1.0,1.0,0.062], 
+    #                           'pumpkin': [1.0,1.0,0.08], 'garlic': [1.0,1.0,0.075]} 
+    target_dimensions_dict = {'orange': [0.05,0.05,0.05], 'apple': [1.0,1.0,0.05], 
+                              'kiwi': [1.0,1.0,0.047], 'banana': [1.0,1.0,0.047], 
+                              'pear': [1.0,1.0,0.075], 'melon': [1.0,1.0,0.055], 
+                              'potato': [1.0,1.0,0.04]}
+    fruit_distance_threshold_meters = 0.3
+    aruco_distance_threshold_pixels = 80
 
 
     plot_tree = True
@@ -598,6 +641,7 @@ if __name__ == "__main__":
         goal_arrived = False
         replan = False 
         waypoint_arrived = False
+
         while goal_arrived == False: 
             
             #step through waypoint in shortest_path 
@@ -632,39 +676,49 @@ if __name__ == "__main__":
                     update_command(drive_forward=True)
                     drive_meas = operate.control()
                     operate.update_slam(drive_meas)
-                    #if the robot is about to bump into an aruco marker 
-                    if marker_close(operate): 
-                        replan = True  
-                    #otherwise, proceed. 
+                    operate.detect_target()
+                    #if the robot has arrived at the waypoint 
+                    #check the distance from the waypoint
+                    robot_pose=get_robot_pose()
+                    [waypoint_arrived,dist_min]=distance_from_waypoint(waypoint, robot_pose, dist_min)
+                    #break out of loop if waypoint arrived 
+                    if waypoint_arrived: 
+                        break 
                     else: 
-                        #check the distance from the waypoint
-                        robot_pose=get_robot_pose()
-                        [waypoint_arrived,dist_min]=distance_from_waypoint(waypoint, robot_pose, dist_min)
-                        #if arrived at a waypoint 
-                        if waypoint_arrived: 
-                            waypoint_arrived = True 
+                        #if the robot is about to bump into an aruco marker OR if about to bump into fruit
+                        if marker_close(operate, aruco_distance_threshold_pixels) or fruit_close(operate, shop_item, fruit_distance_threshold_meters, target_dimensions_dict, camera_matrix): 
+                            print("marker or fruit too close")
+                            replan = True  
+                            break 
+                        #otherwise, proceed. 
                         else: 
-                            #detect fruit in current image
-                            operate.detect_target()
                             #if a target item is seen in the detected fruits
                             if shop_item in operate.detected_box_labels: 
-                                print(f"Target {shop_item} in sight")
-                                #stop and drive to target 
-                                update_command(stop=True)
-                                drive_meas = operate.control()
-                                operate.update_slam(drive_meas)
-                                #drive to target gives 0=false, 1=success, 2=lost sight
-                                print("Attempting to drive to target...")
-                                drive_to_target_success = drive_to_target(operate, shop_item)
-                                if drive_to_target_success==True: 
-                                    print(f"Made it to target")
-                                    goal_arrived = True 
-                                else: 
-                                    replan = True #trigger new pathplanning 
+                                target_idx = [idx for idx, string in enumerate(operate.detected_box_labels) if shop_item == string][0]
+                                if dist_to_fruit(operate.detector_output[target_idx][1], camera_matrix, target_dimensions_dict): 
+                                    print(f"Target {shop_item} in sight")
+                                    #stop 
+                                    update_command(stop=True)
+                                    drive_meas = operate.control()
+                                    operate.update_slam(drive_meas)
+                                    #attempt to drive to target
+                                    print("Attempting to drive to target...")
+                                    drive_to_target_success = drive_to_target(operate, shop_item)
+                                    if drive_to_target_success==True: 
+                                        print(f"Made it to target")
+                                        print("--------------------------------------\n")
+                                        print(f"Arrived at {shop_item}")
+                                        print("--------------------------------------\n")
+                                        goal_arrived = True 
+                                        break 
+                                    else: 
+                                        print(f"Interrupt and drive to {shop_item} failed")
+                                        replan = True #trigger new pathplanning 
+                                        break 
 
-                    #print(f'robot pos is {robot_pose[0],robot_pose[1], clamp_angle(robot_pose[2])*180/np.pi} --- Driving Fwd')
+                        #print(f'robot pos is {robot_pose[0],robot_pose[1], clamp_angle(robot_pose[2])*180/np.pi} --- Driving Fwd')
 
-                #if the robot is too close to a marker, stop and find a new shortest path  
+                #if the robot has been told to replan its route, stop and replan. 
                 if replan == True: 
                     #stop the robots motion 
                     update_command(stop=True)
@@ -676,8 +730,9 @@ if __name__ == "__main__":
                     startpos = (robot_pose[0], robot_pose[1])
                     rrt_star_graph, shortest_path  = find_path(startpos, endpos, obstacles_current, n_iter, radius, stepSize, bounds, goal_radius)
                     #print_path(rrt_star_graph, shortest_path, f"New path to {shop_item}")
-                    #start the for loop again with the new shortest_path
-                    break 
+                    #reset the replan flag 
+                    replan = False 
+                    break  #start the for loop again with the new shortest_path
 
                 #if arrived at a waypoint, stop.  
                 if waypoint_arrived: 
@@ -686,6 +741,8 @@ if __name__ == "__main__":
                     drive_meas = operate.control() 
                     operate.update_slam(drive_meas)
                     print(f"Arrived at Waypoint: {waypoint}\n    with current pose {get_robot_pose()}") 
+                    #reset the waypoint flag 
+                    waypoint_arrived = False
                     #if the current waypoint is also the final waypoint 
                     if waypoint == shortest_path[-1]: 
                         #setting this to true will cancel the while loop and move onto the next shop_item
@@ -708,6 +765,7 @@ if __name__ == "__main__":
                         print("Finishing localising.")
                         print(f"Position after localising: {robot_pose}")
                         print("--------------------------------------\n")
+                        break 
     
 
         #after reaching endpoint should confirm target with YOLO
