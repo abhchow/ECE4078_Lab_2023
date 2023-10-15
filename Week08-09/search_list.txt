@@ -2,4 +2,4 @@ melon
 apple
 orange
 pear
-melon
+kiwi

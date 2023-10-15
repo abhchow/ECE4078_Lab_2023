@@ -206,7 +206,7 @@ def orientation_arrived(waypoint, robot_pose):
 def waypoint_arrived(waypoint, robot_pose):
     dist_from_waypoint = get_distance_robot_to_goal(robot_pose.T,(np.array(waypoint)).T)
     threshold=0.16
-    print(dist_from_waypoint)
+    #print(dist_from_waypoint)
     if dist_from_waypoint<threshold: 
          return True
     else:
