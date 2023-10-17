@@ -565,14 +565,14 @@ def drive_loop(operate, tick=50, turning_tick=15, drive_forward=False, drive_bac
 # main loop
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Fruit searching")
-    parser.add_argument("--map", type=str, default='satG15.txt') # change to 'M4_true_map_part.txt' for lv2&3
+    parser.add_argument("--map", type=str, default='monarena2.txt') # change to 'M4_true_map_part.txt' for lv2&3
     parser.add_argument("--ip", metavar='', type=str, default='192.168.50.1')
     parser.add_argument("--port", metavar='', type=int, default=8080)
     #copy over from operate, did not copy save/play data
     parser.add_argument("--calib_dir", type=str, default="calibration/param/")
     parser.add_argument("--save_data", action='store_true')
     parser.add_argument("--play_data", action='store_true')
-    parser.add_argument("--yolo_model", default='YOLO/model/yolov8_model_kmart.pt') #USING KMART YOLO MODEL 
+    parser.add_argument("--yolo_model", default='YOLO/model/yolov8_model.pt') #USING KMART YOLO MODEL 
     args, _ = parser.parse_known_args()
 
     #read in the camera matrix 
@@ -596,15 +596,15 @@ if __name__ == "__main__":
     stepSize= 0.7 #need large stepsize
     bounds = (-1.35, 1.35, -1.35, 1.35)
     goal_radius = 0.3 #marginally less than 0.5m so that robot is fully within the goal.
-    # target_dimensions_dict = {'orange': [1.0,1.0,0.073], 'lemon': [1.0,1.0,0.041], 
-    #                           'lime': [1.0,1.0,0.052], 'tomato': [1.0,1.0,0.07], 
-    #                           'capsicum': [1.0,1.0,0.097], 'potato': [1.0,1.0,0.062], 
-    #                           'pumpkin': [1.0,1.0,0.08], 'garlic': [1.0,1.0,0.075]} 
-    target_dimensions_dict = {'orange': [0.05,0.05,0.05], 'apple': [1.0,1.0,0.05], 
-                              'kiwi': [1.0,1.0,0.047], 'banana': [1.0,1.0,0.047], 
-                              'pear': [1.0,1.0,0.075], 'melon': [1.0,1.0,0.055], 
-                              'potato': [1.0,1.0,0.04]}
-    fruit_distance_threshold_meters = 0.10
+    target_dimensions_dict = {'orange': [1.0,1.0,0.073], 'lemon': [1.0,1.0,0.041], 
+                              'lime': [1.0,1.0,0.052], 'tomato': [1.0,1.0,0.07], 
+                              'capsicum': [1.0,1.0,0.097], 'potato': [1.0,1.0,0.062], 
+                              'pumpkin': [1.0,1.0,0.08], 'garlic': [1.0,1.0,0.075]} 
+    # target_dimensions_dict = {'orange': [0.05,0.05,0.05], 'apple': [1.0,1.0,0.05], 
+    #                           'kiwi': [1.0,1.0,0.047], 'banana': [1.0,1.0,0.047], 
+    #                           'pear': [1.0,1.0,0.075], 'melon': [1.0,1.0,0.055], 
+    #                           'potato': [1.0,1.0,0.04]}
+    fruit_distance_threshold_meters = 0.12
     aruco_distance_threshold_pixels = 90 #previously 80
     fruit_driveto_distance_threshold = 0.6 # doesn't interrupt and drive to fruit unless within 0.6m of fruit already 
 
@@ -759,6 +759,8 @@ if __name__ == "__main__":
                     print(f"Arrived at Waypoint: {waypoint}\n    with current pose {get_robot_pose()}") 
                     #reset the waypoint flag 
                     waypoint_arrived = False
+                    robot_pose = get_robot_pose()
+                    robot_dist_from_center = get_distance_robot_to_goal(robot_pose, (0,0))
                     #if the current waypoint is also the final waypoint 
                     if waypoint == shortest_path[-1]: 
                         #setting this to true will cancel the while loop and move onto the next shop_item
@@ -770,8 +772,8 @@ if __name__ == "__main__":
                         #relocalise the robot after arriving at a shop item   
                         relocalise(operate)
                         break 
-                    #if 5 waypoints -> relocalise 
-                    elif num_waypoints == 5: 
+                    #if at least 5 waypoints have been visited, and robot is within 1.5m radius of center -> relocalise 
+                    elif num_waypoints >= 5 and robot_dist_from_center<=1.5:  
                         relocalise(operate)
                         #reset counter
                         num_waypoints = 0
