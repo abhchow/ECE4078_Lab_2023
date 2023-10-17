@@ -130,16 +130,16 @@ class Robot:
         if ang_vel == 0:
             Jac2[0,0] = np.cos(th)*dt
             Jac2[1,0] = np.sin(th)*dt
-        elif lin_vel == 0:
-            decrease_uncertainty = 100
-            Jac2[0,0] = (1/ang_vel * (np.sin(th2) - np.sin(th)))/decrease_uncertainty
-            Jac2[0,1] = (-lin_vel/(ang_vel**2) * (np.sin(th2) - np.sin(th)) + \
-                            lin_vel / ang_vel * (dt * np.cos(th2)))/decrease_uncertainty
+        # elif lin_vel == 0:
+        #     decrease_uncertainty = 10
+        #     Jac2[0,0] = (1/ang_vel * (np.sin(th2) - np.sin(th)))/decrease_uncertainty
+        #     Jac2[0,1] = (-lin_vel/(ang_vel**2) * (np.sin(th2) - np.sin(th)) + \
+        #                     lin_vel / ang_vel * (dt * np.cos(th2)))/decrease_uncertainty
 
-            Jac2[1,0] = (-1/ang_vel * (np.cos(th2) - np.cos(th)))/decrease_uncertainty
-            Jac2[1,1] = (lin_vel/(ang_vel**2) * (np.cos(th2) - np.cos(th)) + \
-                            -lin_vel / ang_vel * (-dt * np.sin(th2)))/decrease_uncertainty
-            Jac2[2,1] = dt
+        #     Jac2[1,0] = (-1/ang_vel * (np.cos(th2) - np.cos(th)))/decrease_uncertainty
+        #     Jac2[1,1] = (lin_vel/(ang_vel**2) * (np.cos(th2) - np.cos(th)) + \
+        #                     -lin_vel / ang_vel * (-dt * np.sin(th2)))/decrease_uncertainty
+        #     Jac2[2,1] = dt
         else:
             Jac2[0,0] = 1/ang_vel * (np.sin(th2) - np.sin(th))
             Jac2[0,1] = -lin_vel/(ang_vel**2) * (np.sin(th2) - np.sin(th)) + \
