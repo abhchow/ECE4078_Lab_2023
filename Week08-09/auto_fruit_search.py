@@ -661,7 +661,10 @@ if __name__ == "__main__":
         waypoint_arrived = False
         num_waypoints=0
 
-        while goal_arrived == False: 
+        while goal_arrived == False and not replan ==True: 
+
+            #reset replan flag
+            replan = False
             
             #step through waypoint in shortest_path 
             for waypoint in shortest_path[1:]:
@@ -753,8 +756,7 @@ if __name__ == "__main__":
                     # print(f'robot pose after driving backwards {startpos}')
                     rrt_star_graph, shortest_path  = find_path(startpos, endpos, obstacles_current, n_iter, radius, stepSize, bounds, goal_radius)
                     #print_path(rrt_star_graph, shortest_path, f"New path to {shop_item}")
-                    #reset the replan flag 
-                    replan = False 
+                    #reset the replan flag  
                     break  #start the for loop again with the new shortest_path
 
                 #if arrived at a waypoint, stop.  
