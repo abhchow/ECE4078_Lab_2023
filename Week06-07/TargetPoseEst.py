@@ -35,10 +35,10 @@ def estimate_pose(camera_matrix, obj_info, robot_pose):
     # there are 8 possible types of fruits and vegs
     ######### Replace with your codes #########
     # TODO: measure actual sizes of targets [width, depth, height] and update the dictionary of true target dimensions
-    target_dimensions_dict = {'orange': [1.0,1.0,1.0], 'lemon': [1.0,1.0,1.0], 
-                              'lime': [1.0,1.0,1.0], 'tomato': [1.0,1.0,1.0], 
-                              'capsicum': [1.0,1.0,1.0], 'potato': [1.0,1.0,1.0], 
-                              'pumpkin': [1.0,1.0,1.0], 'garlic': [1.0,1.0,1.0]}
+    target_dimensions_dict = {'orange': [1.0,1.0,0.073], 'lemon': [1.0,1.0,0.041], 
+                              'lime': [1.0,1.0,0.052], 'tomato': [1.0,1.0,0.07], 
+                              'capsicum': [1.0,1.0,0.097], 'potato': [1.0,1.0,0.062], 
+                              'pumpkin': [1.0,1.0,0.08], 'garlic': [1.0,1.0,0.075]} 
     #########
 
     # estimate target pose using bounding box and robot pose
@@ -58,19 +58,23 @@ def estimate_pose(camera_matrix, obj_info, robot_pose):
     
    # relative object location
     distance_obj = distance/np.cos(theta) # relative distance between robot and object
-    x_relative = distance_obj * np.cos(theta) # relative x pose
-    y_relative = distance_obj * np.sin(theta) # relative y pose
-    relative_pose = {'x': x_relative, 'y': y_relative}
-    #print(f'relative_pose: {relative_pose}')
+    if distance_obj <0.7: #object #within certain metres aways
+        x_relative = distance_obj * np.cos(theta) # relative x pose
+        y_relative = distance_obj * np.sin(theta) # relative y pose
+        relative_pose = {'x': x_relative, 'y': y_relative}
+        #print(f'relative_pose: {relative_pose}')
 
-    # location of object in the world frame using rotation matrix
-    delta_x_world = x_relative * np.cos(robot_pose[2]) - y_relative * np.sin(robot_pose[2])
-    delta_y_world = x_relative * np.sin(robot_pose[2]) + y_relative * np.cos(robot_pose[2])
-    # add robot pose with delta target pose
-    target_pose = {'y': (robot_pose[1]+delta_y_world)[0],
-                   'x': (robot_pose[0]+delta_x_world)[0]}
-    #print(f'delta_x_world: {delta_x_world}, delta_y_world: {delta_y_world}')
-    #print(f'target_pose: {target_pose}')
+        # location of object in the world frame using rotation matrix
+        delta_x_world = x_relative * np.cos(robot_pose[2]) - y_relative * np.sin(robot_pose[2])
+        delta_y_world = x_relative * np.sin(robot_pose[2]) + y_relative * np.cos(robot_pose[2])
+        # add robot pose with delta target pose
+        target_pose = {'y': (robot_pose[1]+delta_y_world)[0],
+                    'x': (robot_pose[0]+delta_x_world)[0]}
+        #print(f'delta_x_world: {delta_x_world}, delta_y_world: {delta_y_world}')
+    else: 
+        pass
+    print(f'target_pose: {target_pose}')
+    
 
     return target_pose
 
