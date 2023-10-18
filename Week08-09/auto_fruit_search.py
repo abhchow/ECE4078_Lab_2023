@@ -219,6 +219,7 @@ def angle_mav_from_waypoint(waypoint, robot_pose, angle_mov_ave):
      else:
          angle_mov_ave = np.append(angle_mov_ave, angle_diff)
          angle_mov_ave = angle_mov_ave[1:]
+        #  print(angle_diff*180/np.pi)
          return False, angle_mov_ave
 
 def distance_from_waypoint(waypoint, robot_pose, dist_min):
@@ -428,7 +429,10 @@ def print_path(rrt_star_graph, shortest_path, fig_name):
 def drive_to_target(operate, target): 
     #add new
     #long winded way to get target values in case more fruits pop up in the detected box labels (even due to background)
-    target_idx = [idx for idx, string in enumerate(operate.detected_box_labels) if target == string][0]
+    box_labels = operate.detected_box_labels
+    if len(box_labels) == 0:
+        return False
+    target_idx = [idx for idx, string in enumerate(box_labels) if target == string][0]
     target_x, _, _, target_height = operate.detector_output[target_idx][1]
     #x and y is relative to the top left corner origin (0,0) of the image 
     #therefore the horizontal center of the image is half of its width (r=240,c=320)
@@ -449,8 +453,8 @@ def drive_to_target(operate, target):
             drive_loop(operate, turning_tick=5, turn_left=True)
         #recalculate the coords of the targets
         #if the target is detected in the current frame
-        if target in operate.detected_box_labels: 
-            target_idx = [idx for idx, string in enumerate(operate.detected_box_labels) if target == string][0]
+        if target in box_labels: 
+            target_idx = [idx for idx, string in enumerate(box_labels) if target == string][0]
             target_x, _, _, target_height = operate.detector_output[target_idx][1]
         #otherwise, stop the turning 
         else: 
@@ -458,8 +462,8 @@ def drive_to_target(operate, target):
             #stop the driving 
             drive_loop(operate, stop=True)
             #if the target fruit is seen in the image, keep going with the algorithm as normal  
-            if target in operate.detected_box_labels:
-                target_idx = [idx for idx, string in enumerate(operate.detected_box_labels) if target == string][0]
+            if target in box_labels:
+                target_idx = [idx for idx, string in enumerate(box_labels) if target == string][0]
                 target_x, _, _, target_height = operate.detector_output[target_idx][1]
             #otherwise, assume the target is lost and abort the function 
             else: 
@@ -470,8 +474,8 @@ def drive_to_target(operate, target):
     
     while distance_to_fruit > 0.3 and not marker_close(operate, aruco_distance_threshold_pixels) and not fruit_close(operate, shop_item, fruit_distance_threshold_meters, target_dimensions_dict, camera_matrix) :
         drive_loop(operate, drive_forward=True)
-        if target in operate.detected_box_labels: 
-            target_idx = [idx for idx, string in enumerate(operate.detected_box_labels) if target == string][0]
+        if target in box_labels: 
+            target_idx = [idx for idx, string in enumerate(box_labels) if target == string][0]
             _, _, _, target_height = operate.detector_output[target_idx][1]
             #if arrived at the fruit
             if target_height >= 80: 
@@ -484,8 +488,8 @@ def drive_to_target(operate, target):
             #stop the driving, take a pic (more likely to see fruit if stopped)
             drive_loop(operate, stop=True)
             #if the target fruit is seen in the image, keep going with the algorithm as normal  
-            if target in operate.detected_box_labels:
-                target_idx = [idx for idx, string in enumerate(operate.detected_box_labels) if target == string][0]
+            if target in box_labels:
+                target_idx = [idx for idx, string in enumerate(box_labels) if target == string][0]
                 _, _, _, target_height = operate.detector_output[target_idx][1]
                 print(f"target_height = {target_height}")
                 #if arrived at the fruit
@@ -565,7 +569,7 @@ def drive_loop(operate, tick=50, turning_tick=15, drive_forward=False, drive_bac
 # main loop
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Fruit searching")
-    parser.add_argument("--map", type=str, default='monarena2.txt') # change to 'M4_true_map_part.txt' for lv2&3
+    parser.add_argument("--map", type=str, default='party_room_map.txt') # change to 'M4_true_map_part.txt' for lv2&3
     parser.add_argument("--ip", metavar='', type=str, default='192.168.50.1')
     parser.add_argument("--port", metavar='', type=int, default=8080)
     #copy over from operate, did not copy save/play data
@@ -746,6 +750,7 @@ if __name__ == "__main__":
                     print("Finding a new shortest path...") 
                     robot_pose = get_robot_pose()
                     startpos = (robot_pose[0], robot_pose[1])
+                    # print(f'robot pose after driving backwards {startpos}')
                     rrt_star_graph, shortest_path  = find_path(startpos, endpos, obstacles_current, n_iter, radius, stepSize, bounds, goal_radius)
                     #print_path(rrt_star_graph, shortest_path, f"New path to {shop_item}")
                     #reset the replan flag 
@@ -760,7 +765,7 @@ if __name__ == "__main__":
                     #reset the waypoint flag 
                     waypoint_arrived = False
                     robot_pose = get_robot_pose()
-                    robot_dist_from_center = get_distance_robot_to_goal(robot_pose, (0,0))
+                    robot_dist_from_center = get_distance_robot_to_goal(robot_pose, np.array([0,0,0]))
                     #if the current waypoint is also the final waypoint 
                     if waypoint == shortest_path[-1]: 
                         #setting this to true will cancel the while loop and move onto the next shop_item
