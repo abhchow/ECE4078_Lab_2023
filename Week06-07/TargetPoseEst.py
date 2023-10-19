@@ -5,6 +5,7 @@ import os
 import ast
 import cv2
 from YOLO.detector import Detector
+from sklearn.cluster import KMeans
 
 
 # list of target fruits and vegs types
@@ -92,7 +93,48 @@ def merge_estimations(target_pose_dict):
 
     ######### Replace with your codes #########
     # TODO: replace it with a solution to merge the multiple occurrences of the same class type (e.g., by a distance threshold)
-    target_est = target_pose_dict
+
+    #target_pose_dict is just #will have {"orange_0": {"y": num,"x": num}, "orange_1":...}
+    #replace prev func w k-mean
+    data_array=[]
+    data_headings=[]
+
+    for index, (key, value) in enumerate(target_pose_dict.items()):
+        head, sep, tail = key.partition('_')
+        key=head
+        data_array.append([value['x'],value['y']])
+        data_headings.append(head)
+
+        data_array=np.array(data_array)
+        kmeans=KMeans(n_clusters=8,random_state=0,n_init="auto").fit(data_array)
+        # print(kmeans.labels_)
+        # print(kmeans.cluster_centers_)
+        # plt.figure()
+        # plt.scatter(data_array[:,0],data_array[:,1])
+        # plt.scatter(kmeans.cluster_centers_[:,0],kmeans.cluster_centers_[:,1])
+
+        current_target=[]
+        #need to equate cluster index 0 with its position
+        for i in range(len(data_headings)):
+            temp_heading=data_headings[i]
+            cluster_num=kmeans.labels_[i]
+            cluster_centre=kmeans.cluster_centers_[cluster_num]
+            #target est update will update repeated clusters, need to add new for repeated fruits
+            if temp_heading in current_target:#true, string overlap
+                #check if not same cluster
+                if (cluster_centre[0] != target_est[temp_heading+'_'+str(0)]['x']) and (cluster_centre[1] !=target_est[temp_heading+'_'+str(0)]['y']):
+                    print(cluster_centre)
+                    #assumes max 2 of each fruit
+                    target_est.update({temp_heading+'_'+str(1):{'y':cluster_centre[1],'x':cluster_centre[0]}})
+                else:
+                    pass#same cluster 
+            else:
+                target_est.update({temp_heading+'_'+str(0):{'y':cluster_centre[1],'x':cluster_centre[0]}})
+            #update current_target list at end
+            current_target=[]
+            for index, (key, value) in enumerate(target_est.items()): #loop target_est to check if exist
+                head, sep, tail = key.partition('_')
+                current_target.append(head)
     #########
    
     return target_est
