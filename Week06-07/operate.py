@@ -105,20 +105,38 @@ class Operate:
         if self.data is not None:
             self.data.write_image(self.img)
 
-    # SLAM with ARUCO markers       
+    # SLAM with ARUCO markers           
     def update_slam(self, drive_meas):
         lms, self.aruco_img = self.aruco_det.detect_marker_positions(self.img)
+        print(f"lms = {lms[0].position}")
+
+        #print(lms[0].position)
+        #print(lms[0].position)
+        #print(markers_pos_3d)
+        #lms_filtered = lms 
+        # for idx, marker in enumerate(markers_pos_3d): 
+        #     print(idx)
+        #     print(marker)
+
+        # #if the marker is more than 0.8m away, remove it from the list of detected markers. 
+        # for idx, marker in enumerate(lms): 
+        #     #marker positions in format [x,y,z] with z pointing forward, y pointing down, x pointing right. 
+        #     if marker.position[2] >= 0.8: 
+        #         #remove current index 
+        #         lms_filtered.pop(idx)
+
         if self.request_recover_robot:
             is_success = self.ekf.recover_from_pause(lms)
             if is_success:
                 self.notification = 'Robot pose is successfuly recovered'
                 self.ekf_on = True
             else:
-                self.notification = 'Recover failed, need >2 landmarks!'
+                self.notification = 'Recover ffailed, need >2 landmarks!'
                 self.ekf_on = False
             self.request_recover_robot = False
         elif self.ekf_on:  # and not self.debug_flag:
             self.ekf.predict(drive_meas)
+            #lms_filtered to replace lms so that far away markers are removed, as they give innaccurate predictions. 
             self.ekf.add_landmarks(lms)
             self.ekf.update(lms)
 
@@ -314,7 +332,7 @@ if __name__ == "__main__":
     parser.add_argument("--calib_dir", type=str, default="calibration/param/")
     parser.add_argument("--save_data", action='store_true')
     parser.add_argument("--play_data", action='store_true')
-    parser.add_argument("--yolo_model", default='YOLO/model/yolov8_model.pt')
+    parser.add_argument("--yolo_model", default='YOLO/model/yolov8_model_kmart.pt')
     args, _ = parser.parse_known_args()
 
     pygame.font.init()
