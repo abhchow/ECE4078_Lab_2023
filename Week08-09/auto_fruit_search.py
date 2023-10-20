@@ -679,12 +679,18 @@ if __name__ == "__main__":
             
             #step through waypoint in shortest_path 
             for waypoint in shortest_path[1:]:
+                print(f"Going to waypoint: {waypoint}\n    with current pose {get_robot_pose()}") 
                 angle_arrived = False
                 angle_mav=np.ones((1,5))*1e3
                 num_waypoints+=1 #increment
 
-                
+                # just_started_turning = True
+                operate.control_clock = time.time()
                 while not angle_arrived:    
+                    # robot_pose = get_robot_pose()
+                    # if just_started_turning:
+                    #     print(f"pose when starting to turn: {robot_pose}")
+                    #     just_started_turning = False
                     angle_diff = clamp_angle(np.arctan2(waypoint[1]-robot_pose[1], waypoint[0]-robot_pose[0])-robot_pose[2])
                     if angle_diff>0: 
                         #turn left
@@ -693,9 +699,10 @@ if __name__ == "__main__":
                         #turn right
                         drive_loop(operate, turn_right=True)
                     robot_pose=get_robot_pose()
+                    print(f"Turning to angle. Current pose is {robot_pose}")
                     [angle_arrived, angle_mav]=angle_mav_from_waypoint(waypoint, robot_pose, angle_mav) #returns boolean    
                     #print(f'robot pos is {robot_pose[0],robot_pose[1], clamp_angle(robot_pose[2])*180/np.pi} --- Turning')
-                print("Arrived at Angle")
+                print(f"Arrived at Angle, with current pose {get_robot_pose()}")
 
 
                 dist_min=np.ones((1,5))*1e3 #very small number init- check postive upward trend, use for moving average
@@ -749,9 +756,6 @@ if __name__ == "__main__":
 
                 #if the robot has been told to replan its route, stop and replan. 
                 if replan == True: 
-                    robot_pose = get_robot_pose()
-                    replan_pos = (robot_pose[0], robot_pose[1])
-                    print(f'robot pose before replanning {replan_pos}')
                     #stop the robots motion
                     drive_loop(operate, stop=True)
                     #drive backwards for 1 second at half speed
@@ -768,8 +772,11 @@ if __name__ == "__main__":
                     print("Finding a new shortest path...") 
                     robot_pose = get_robot_pose()
                     startpos = (robot_pose[0], robot_pose[1])
-                    print(f'robot pose after driving backwards {startpos}')
+                    print(f'robot pose after driving backwards {robot_pose}')
                     rrt_star_graph, shortest_path  = find_path(startpos, endpos, obstacles_current, n_iter, radius, stepSize, bounds, goal_radius)
+
+                    print(f'planning to endpos {endpos}')
+                    print(f'first point in shortest path {shortest_path[1]}')
                     #print_path(rrt_star_graph, shortest_path, f"New path to {shop_item}")
                     #reset the replan flag  
                     replan=False
