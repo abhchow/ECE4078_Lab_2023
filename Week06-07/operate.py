@@ -108,7 +108,8 @@ class Operate:
     # SLAM with ARUCO markers           
     def update_slam(self, drive_meas):
         lms, self.aruco_img = self.aruco_det.detect_marker_positions(self.img)
-        print(f"lms = {lms[0].position}")
+        # if len(lms) > 0:
+        #     print(f"lms = {lms[0].position}")
 
         #print(lms[0].position)
         #print(lms[0].position)

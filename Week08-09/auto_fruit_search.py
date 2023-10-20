@@ -8,6 +8,7 @@ import json
 import argparse
 import time
 from copy import deepcopy
+import pdb
 
 # import SLAM components
 #section was prev commented out
@@ -430,9 +431,16 @@ def drive_to_target(operate, target):
     #add new
     #long winded way to get target values in case more fruits pop up in the detected box labels (even due to background)
     box_labels = operate.detected_box_labels
+
     if len(box_labels) == 0:
         return False
-    target_idx = [idx for idx, string in enumerate(box_labels) if target == string][0]
+
+    target_idxs = [idx for idx, string in enumerate(box_labels) if target == string]
+    if len(target_idx) > 0:
+        target_idx = target_idxs[0]
+    else:
+        return False
+
     target_x, _, _, target_height = operate.detector_output[target_idx][1]
     #x and y is relative to the top left corner origin (0,0) of the image 
     #therefore the horizontal center of the image is half of its width (r=240,c=320)
@@ -453,6 +461,7 @@ def drive_to_target(operate, target):
             drive_loop(operate, turning_tick=5, turn_left=True)
         #recalculate the coords of the targets
         #if the target is detected in the current frame
+        box_labels = operate.detected_box_labels
         if target in box_labels: 
             target_idx = [idx for idx, string in enumerate(box_labels) if target == string][0]
             target_x, _, _, target_height = operate.detector_output[target_idx][1]
@@ -462,6 +471,7 @@ def drive_to_target(operate, target):
             #stop the driving 
             drive_loop(operate, stop=True)
             #if the target fruit is seen in the image, keep going with the algorithm as normal  
+            box_labels = operate.detected_box_labels
             if target in box_labels:
                 target_idx = [idx for idx, string in enumerate(box_labels) if target == string][0]
                 target_x, _, _, target_height = operate.detector_output[target_idx][1]
@@ -474,6 +484,7 @@ def drive_to_target(operate, target):
     
     while distance_to_fruit > 0.3 and not marker_close(operate, aruco_distance_threshold_pixels) and not fruit_close(operate, shop_item, fruit_distance_threshold_meters, target_dimensions_dict, camera_matrix) :
         drive_loop(operate, drive_forward=True)
+        box_labels = operate.detected_box_labels
         if target in box_labels: 
             target_idx = [idx for idx, string in enumerate(box_labels) if target == string][0]
             _, _, _, target_height = operate.detector_output[target_idx][1]
@@ -488,6 +499,7 @@ def drive_to_target(operate, target):
             #stop the driving, take a pic (more likely to see fruit if stopped)
             drive_loop(operate, stop=True)
             #if the target fruit is seen in the image, keep going with the algorithm as normal  
+            box_labels = operate.detected_box_labels
             if target in box_labels:
                 target_idx = [idx for idx, string in enumerate(box_labels) if target == string][0]
                 _, _, _, target_height = operate.detector_output[target_idx][1]
@@ -569,14 +581,15 @@ def drive_loop(operate, tick=50, turning_tick=15, drive_forward=False, drive_bac
 # main loop
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Fruit searching")
-    parser.add_argument("--map", type=str, default='m3_map.txt') # change to 'M4_true_map_part.txt' for lv2&3
+    parser.add_argument("--map", type=str, default='albert_house.txt') # change to 'M4_true_map_part.txt' for lv2&3
     parser.add_argument("--ip", metavar='', type=str, default='192.168.50.1')
     parser.add_argument("--port", metavar='', type=int, default=8080)
     #copy over from operate, did not copy save/play data
     parser.add_argument("--calib_dir", type=str, default="calibration/param/")
     parser.add_argument("--save_data", action='store_true')
     parser.add_argument("--play_data", action='store_true')
-    parser.add_argument("--yolo_model", default='YOLO/model/yolov8_model.pt') #USING KMART YOLO MODEL 
+    # parser.add_argument("--yolo_model", default='YOLO/model/yolov8_model.pt')
+    parser.add_argument("--yolo_model", default='YOLO/model/yolov8_model_kmart.pt') #USING KMART YOLO MODEL 
     args, _ = parser.parse_known_args()
 
     #read in the camera matrix 
@@ -600,14 +613,14 @@ if __name__ == "__main__":
     stepSize= 0.7 #need large stepsize
     bounds = (-1.35, 1.35, -1.35, 1.35)
     goal_radius = 0.3 #marginally less than 0.5m so that robot is fully within the goal.
-    target_dimensions_dict = {'orange': [1.0,1.0,0.073], 'lemon': [1.0,1.0,0.041], 
-                              'lime': [1.0,1.0,0.052], 'tomato': [1.0,1.0,0.07], 
-                              'capsicum': [1.0,1.0,0.097], 'potato': [1.0,1.0,0.062], 
-                              'pumpkin': [1.0,1.0,0.08], 'garlic': [1.0,1.0,0.075]} 
-    # target_dimensions_dict = {'orange': [0.05,0.05,0.05], 'apple': [1.0,1.0,0.05], 
-    #                           'kiwi': [1.0,1.0,0.047], 'banana': [1.0,1.0,0.047], 
-    #                           'pear': [1.0,1.0,0.075], 'melon': [1.0,1.0,0.055], 
-    #                           'potato': [1.0,1.0,0.04]}
+    # target_dimensions_dict = {'orange': [1.0,1.0,0.073], 'lemon': [1.0,1.0,0.041], 
+    #                           'lime': [1.0,1.0,0.052], 'tomato': [1.0,1.0,0.07], 
+    #                           'capsicum': [1.0,1.0,0.097], 'potato': [1.0,1.0,0.062], 
+    #                           'pumpkin': [1.0,1.0,0.08], 'garlic': [1.0,1.0,0.075]} 
+    target_dimensions_dict = {'orange': [0.05,0.05,0.05], 'apple': [1.0,1.0,0.05], 
+                              'kiwi': [1.0,1.0,0.047], 'banana': [1.0,1.0,0.047], 
+                              'pear': [1.0,1.0,0.075], 'melon': [1.0,1.0,0.055], 
+                              'potato': [1.0,1.0,0.04]}
     fruit_distance_threshold_meters = 0.12
     aruco_distance_threshold_pixels = 90 #previously 80
     fruit_driveto_distance_threshold = 0.6 # doesn't interrupt and drive to fruit unless within 0.6m of fruit already 
@@ -661,10 +674,8 @@ if __name__ == "__main__":
         waypoint_arrived = False
         num_waypoints=0
 
-        while goal_arrived == False and not replan ==True: 
+        while goal_arrived == False: 
 
-            #reset replan flag
-            replan = False
             
             #step through waypoint in shortest_path 
             for waypoint in shortest_path[1:]:
@@ -691,7 +702,7 @@ if __name__ == "__main__":
                 target_in_sight_counter = 0
                 drive_to_target_success=0 #default 0-false value
 
-                while not waypoint_arrived and not replan==True and not goal_arrived:
+                while not waypoint_arrived and not replan and not goal_arrived:
                     #drive forward
                     drive_loop(operate, drive_forward=True)
                     #if the robot has arrived at the waypoint 
@@ -732,11 +743,15 @@ if __name__ == "__main__":
                                         break 
                                     else: 
                                         print(f"Drive to {shop_item} failed")
+                                        print(f"current robot pos: {get_robot_pose()}")
                                         replan = True #trigger new pathplanning 
                                         break 
 
                 #if the robot has been told to replan its route, stop and replan. 
                 if replan == True: 
+                    robot_pose = get_robot_pose()
+                    replan_pos = (robot_pose[0], robot_pose[1])
+                    print(f'robot pose before replanning {replan_pos}')
                     #stop the robots motion
                     drive_loop(operate, stop=True)
                     #drive backwards for 1 second at half speed
@@ -753,10 +768,11 @@ if __name__ == "__main__":
                     print("Finding a new shortest path...") 
                     robot_pose = get_robot_pose()
                     startpos = (robot_pose[0], robot_pose[1])
-                    # print(f'robot pose after driving backwards {startpos}')
+                    print(f'robot pose after driving backwards {startpos}')
                     rrt_star_graph, shortest_path  = find_path(startpos, endpos, obstacles_current, n_iter, radius, stepSize, bounds, goal_radius)
                     #print_path(rrt_star_graph, shortest_path, f"New path to {shop_item}")
                     #reset the replan flag  
+                    replan=False
                     break  #start the for loop again with the new shortest_path
 
                 #if arrived at a waypoint, stop.  
