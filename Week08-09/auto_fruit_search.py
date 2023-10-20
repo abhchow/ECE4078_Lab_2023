@@ -436,7 +436,7 @@ def drive_to_target(operate, target):
         return False
 
     target_idxs = [idx for idx, string in enumerate(box_labels) if target == string]
-    if len(target_idx) > 0:
+    if len(target_idxs) > 0:
         target_idx = target_idxs[0]
     else:
         return False
