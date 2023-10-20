@@ -1,5 +1,5 @@
-banana
-melon
-kiwi
-pear
+tomato
 orange
+potato
+garlic
+lemon

@@ -1,5 +1,6 @@
 # teleoperate the robot, perform SLAM and object detection
 
+import pdb
 import os
 import sys
 import time
@@ -118,15 +119,20 @@ class Operate:
 
         #if the marker is more than 0.8m away, remove it from the list of detected markers. 
         # for idx, marker in enumerate(lms): 
-        #     #marker positions in format [x,y,z] with z pointing forward, y pointing down, x pointing right. 
                 
         #     lm_x = marker.position[0][0]
         #     lm_y = marker.position[1][0]
         #     dist_to_lm = np.linalg.norm(np.array([robot_x - lm_x, robot_y - lm_y]))
+            # dist_to_lm = np.linalg.norm(np.array([lm_x, lm_y]))
         #     print(f'marker is  {dist_to_lm} away')
         #     if dist_to_lm > 0.7:
         #         #remove current index 
         #         lms_filtered.pop(idx)
+
+        # for lm in lms:
+        #     for idx, tag in enumerate(self.ekf.taglist):
+        #         if lm.tag == 6 and tag == 6:
+        #             print(self.ekf.markers[0][idx], self.ekf.markers[1][idx])
 
         if self.request_recover_robot:
             is_success = self.ekf.recover_from_pause(lms)
@@ -337,7 +343,7 @@ if __name__ == "__main__":
     parser.add_argument("--calib_dir", type=str, default="calibration/param/")
     parser.add_argument("--save_data", action='store_true')
     parser.add_argument("--play_data", action='store_true')
-    parser.add_argument("--yolo_model", default='YOLO/model/yolov8_model_kmart.pt')
+    parser.add_argument("--yolo_model", default='YOLO/model/yolov8_model.pt')
     args, _ = parser.parse_known_args()
 
     pygame.font.init()

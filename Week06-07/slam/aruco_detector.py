@@ -22,7 +22,7 @@ class aruco_detector:
         rvecs, tvecs, _ = cv2.aruco.estimatePoseSingleMarkers(
             corners, self.marker_length, self.camera_matrix, self.distortion_params)
         # rvecs, tvecs = cv2.aruco.estimatePoseSingleMarkers(corners, self.marker_length, self.camera_matrix, self.distortion_params) # use this instead if you got a value error
-        
+            # marker positions in format [x,y,z] with z pointing forward, y pointing down, x pointing right. 
         #print(tvecs)
 
         if ids is None:

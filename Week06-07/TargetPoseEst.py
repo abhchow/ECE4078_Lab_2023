@@ -10,8 +10,8 @@ from sklearn.cluster import KMeans
 
 # list of target fruits and vegs types
 # Make sure the names are the same as the ones used in your YOLO model
-# TARGET_TYPES = ['orange', 'lemon', 'lime', 'tomato', 'capsicum', 'potato', 'pumpkin', 'garlic']
-TARGET_TYPES = ['orange', 'apple', 'kiwi', 'banana', 'pear', 'melon', 'potato']
+TARGET_TYPES = ['orange', 'lemon', 'lime', 'tomato', 'capsicum', 'potato', 'pumpkin', 'garlic']
+# TARGET_TYPES = ['orange', 'apple', 'kiwi', 'banana', 'pear', 'melon', 'potato']
 
 def estimate_pose(camera_matrix, obj_info, robot_pose):
     """
@@ -36,14 +36,14 @@ def estimate_pose(camera_matrix, obj_info, robot_pose):
     # there are 8 possible types of fruits and vegs
     ######### Replace with your codes #########
     # TODO: measure actual sizes of targets [width, depth, height] and update the dictionary of true target dimensions
-    # target_dimensions_dict = {'orange': [1.0,1.0,0.073], 'lemon': [1.0,1.0,0.041], 
-    #                           'lime': [1.0,1.0,0.052], 'tomato': [1.0,1.0,0.07], 
-    #                           'capsicum': [1.0,1.0,0.097], 'potato': [1.0,1.0,0.062], 
-    #                           'pumpkin': [1.0,1.0,0.08], 'garlic': [1.0,1.0,0.075]}
-    target_dimensions_dict = {'orange': [0.05,0.05,0.05], 'apple': [1.0,1.0,0.05], 
-                              'kiwi': [1.0,1.0,0.047], 'banana': [1.0,1.0,0.047], 
-                              'pear': [1.0,1.0,0.075], 'melon': [1.0,1.0,0.055], 
-                              'potato': [1.0,1.0,0.04]}
+    target_dimensions_dict = {'orange': [1.0,1.0,0.073], 'lemon': [1.0,1.0,0.041], 
+                              'lime': [1.0,1.0,0.052], 'tomato': [1.0,1.0,0.07], 
+                              'capsicum': [1.0,1.0,0.097], 'potato': [1.0,1.0,0.062], 
+                              'pumpkin': [1.0,1.0,0.08], 'garlic': [1.0,1.0,0.075]}
+    # target_dimensions_dict = {'orange': [0.05,0.05,0.05], 'apple': [1.0,1.0,0.05], 
+    #                           'kiwi': [1.0,1.0,0.047], 'banana': [1.0,1.0,0.047], 
+    #                           'pear': [1.0,1.0,0.075], 'melon': [1.0,1.0,0.055], 
+    #                           'potato': [1.0,1.0,0.04]}
     #########
 
     # estimate target pose using bounding box and robot pose
@@ -63,22 +63,22 @@ def estimate_pose(camera_matrix, obj_info, robot_pose):
     
    # relative object location
     distance_obj = distance/np.cos(theta) # relative distance between robot and object
-    if distance_obj <0.7: #object #within certain metres aways
-        x_relative = distance_obj * np.cos(theta) # relative x pose
-        y_relative = distance_obj * np.sin(theta) # relative y pose
-        relative_pose = {'x': x_relative, 'y': y_relative}
-        #print(f'relative_pose: {relative_pose}')
+    # if distance_obj <0.7: #object #within certain metres aways
+    x_relative = distance_obj * np.cos(theta) # relative x pose
+    y_relative = distance_obj * np.sin(theta) # relative y pose
+    relative_pose = {'x': x_relative, 'y': y_relative}
+    #print(f'relative_pose: {relative_pose}')
 
-        # location of object in the world frame using rotation matrix
-        delta_x_world = x_relative * np.cos(robot_pose[2]) - y_relative * np.sin(robot_pose[2])
-        delta_y_world = x_relative * np.sin(robot_pose[2]) + y_relative * np.cos(robot_pose[2])
-        # add robot pose with delta target pose
-        target_pose = {'y': (robot_pose[1]+delta_y_world)[0],
-                    'x': (robot_pose[0]+delta_x_world)[0]}
+    # location of object in the world frame using rotation matrix
+    delta_x_world = x_relative * np.cos(robot_pose[2]) - y_relative * np.sin(robot_pose[2])
+    delta_y_world = x_relative * np.sin(robot_pose[2]) + y_relative * np.cos(robot_pose[2])
+    # add robot pose with delta target pose
+    target_pose = {'y': (robot_pose[1]+delta_y_world)[0],
+                'x': (robot_pose[0]+delta_x_world)[0]}
         #print(f'delta_x_world: {delta_x_world}, delta_y_world: {delta_y_world}')
-    else: 
-        pass
-    print(f'target_pose: {target_pose}')
+    # else: 
+        # pass
+    # print(f'target_pose: {target_pose}')
     
 
     return target_pose
@@ -109,36 +109,36 @@ def merge_estimations(target_pose_dict):
         data_array.append([value['x'],value['y']])
         data_headings.append(head)
 
-        data_array=np.array(data_array)
-        kmeans=KMeans(n_clusters=8,random_state=0,n_init="auto").fit(data_array)
-        # print(kmeans.labels_)
-        # print(kmeans.cluster_centers_)
-        # plt.figure()
-        # plt.scatter(data_array[:,0],data_array[:,1])
-        # plt.scatter(kmeans.cluster_centers_[:,0],kmeans.cluster_centers_[:,1])
+    data_array=np.array(data_array)
+    kmeans=KMeans(n_clusters=10,random_state=0,n_init="auto").fit(data_array)
+    # print(kmeans.labels_)
+    # print(kmeans.cluster_centers_)
+    # plt.figure()
+    # plt.scatter(data_array[:,0],data_array[:,1])
+    # plt.scatter(kmeans.cluster_centers_[:,0],kmeans.cluster_centers_[:,1])
 
-        current_target=[]
-        #need to equate cluster index 0 with its position
-        for i in range(len(data_headings)):
-            temp_heading=data_headings[i]
-            cluster_num=kmeans.labels_[i]
-            cluster_centre=kmeans.cluster_centers_[cluster_num]
-            #target est update will update repeated clusters, need to add new for repeated fruits
-            if temp_heading in current_target:#true, string overlap
-                #check if not same cluster
-                if (cluster_centre[0] != target_est[temp_heading+'_'+str(0)]['x']) and (cluster_centre[1] !=target_est[temp_heading+'_'+str(0)]['y']):
-                    print(cluster_centre)
-                    #assumes max 2 of each fruit
-                    target_est.update({temp_heading+'_'+str(1):{'y':cluster_centre[1],'x':cluster_centre[0]}})
-                else:
-                    pass#same cluster 
+    current_target=[]
+    #need to equate cluster index 0 with its position
+    for i in range(len(data_headings)):
+        temp_heading=data_headings[i]
+        cluster_num=kmeans.labels_[i]
+        cluster_centre=kmeans.cluster_centers_[cluster_num]
+        #target est update will update repeated clusters, need to add new for repeated fruits
+        if temp_heading in current_target:#true, string overlap
+            #check if not same cluster
+            if (cluster_centre[0] != target_est[temp_heading+'_'+str(0)]['x']) and (cluster_centre[1] !=target_est[temp_heading+'_'+str(0)]['y']):
+                print(cluster_centre)
+                #assumes max 2 of each fruit
+                target_est.update({temp_heading+'_'+str(1):{'y':cluster_centre[1],'x':cluster_centre[0]}})
             else:
-                target_est.update({temp_heading+'_'+str(0):{'y':cluster_centre[1],'x':cluster_centre[0]}})
-            #update current_target list at end
-            current_target=[]
-            for index, (key, value) in enumerate(target_est.items()): #loop target_est to check if exist
-                head, sep, tail = key.partition('_')
-                current_target.append(head)
+                pass#same cluster 
+        else:
+            target_est.update({temp_heading+'_'+str(0):{'y':cluster_centre[1],'x':cluster_centre[0]}})
+        #update current_target list at end
+        current_target=[]
+        for index, (key, value) in enumerate(target_est.items()): #loop target_est to check if exist
+            head, sep, tail = key.partition('_')
+            current_target.append(head)
     #########
    
     return target_est
@@ -153,7 +153,7 @@ if __name__ == "__main__":
     camera_matrix = np.loadtxt(fileK, delimiter=',')
 
     # init YOLO model
-    model_path = f'{script_dir}/YOLO/model/yolov8_model_kmart.pt'
+    model_path = f'{script_dir}/YOLO/model/yolov8_model.pt'
     yolo = Detector(model_path)
 
     # create a dictionary of all the saved images with their corresponding robot pose
