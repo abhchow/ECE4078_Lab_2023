@@ -111,18 +111,20 @@ class Operate:
         # if len(lms) > 0:
         #     print(f"lms = {lms[0].position}")
 
-        #print(lms[0].position)
-        #print(lms[0].position)
-        #print(markers_pos_3d)
-        #lms_filtered = lms 
-        # for idx, marker in enumerate(markers_pos_3d): 
-        #     print(idx)
-        #     print(marker)
+        # lms_filtered = lms 
+        # pose = self.ekf.get_state_vector()
+        # robot_x = pose[0][0]
+        # robot_y = pose[1][0]
 
-        # #if the marker is more than 0.8m away, remove it from the list of detected markers. 
+        #if the marker is more than 0.8m away, remove it from the list of detected markers. 
         # for idx, marker in enumerate(lms): 
         #     #marker positions in format [x,y,z] with z pointing forward, y pointing down, x pointing right. 
-        #     if marker.position[2] >= 0.8: 
+                
+        #     lm_x = marker.position[0][0]
+        #     lm_y = marker.position[1][0]
+        #     dist_to_lm = np.linalg.norm(np.array([robot_x - lm_x, robot_y - lm_y]))
+        #     print(f'marker is  {dist_to_lm} away')
+        #     if dist_to_lm > 0.7:
         #         #remove current index 
         #         lms_filtered.pop(idx)
 
@@ -140,6 +142,8 @@ class Operate:
             #lms_filtered to replace lms so that far away markers are removed, as they give innaccurate predictions. 
             self.ekf.add_landmarks(lms)
             self.ekf.update(lms)
+            # self.ekf.add_landmarks(lms_filtered)
+            # self.ekf.update(lms_filtered)
 
     # using computer vision to detect targets
     def detect_target(self):
