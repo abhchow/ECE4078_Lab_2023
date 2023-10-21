@@ -123,11 +123,14 @@ class Operate:
         #     lm_x = marker.position[0][0]
         #     lm_y = marker.position[1][0]
         #     dist_to_lm = np.linalg.norm(np.array([robot_x - lm_x, robot_y - lm_y]))
-            # dist_to_lm = np.linalg.norm(np.array([lm_x, lm_y]))
-        #     print(f'marker is  {dist_to_lm} away')
-        #     if dist_to_lm > 0.7:
+        # lms_filtered = lms
+        # for idx, marker in enumerate(lms): 
+        #     dist_to_lm = np.linalg.norm(np.array([marker.position[0], marker.position[1]]))
+        #     #print(f"{idx}: {dist_to_lm}\n")
+        #     if dist_to_lm > 8:
         #         #remove current index 
         #         lms_filtered.pop(idx)
+        # lms = lms_filtered
 
         # for lm in lms:
         #     for idx, tag in enumerate(self.ekf.taglist):
