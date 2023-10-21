@@ -10,10 +10,16 @@ class aruco_detector:
     def __init__(self, robot, marker_length=0.07):
         self.camera_matrix = robot.camera_matrix
         self.distortion_params = robot.camera_dist
+        self.robot = robot
 
         self.marker_length = marker_length
         self.aruco_params = cv2.aruco.DetectorParameters() # updated to work with newer OpenCV
         self.aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_100) # updated to work with newer OpenCV
+        
+    def get_state_vector(self):
+        state = np.concatenate(
+            (self.robot.state, np.reshape(self.markers, (-1,1), order='F')), axis=0)
+        return state
     
     def detect_marker_positions(self, img):
         # Perform detection
@@ -24,6 +30,8 @@ class aruco_detector:
         # rvecs, tvecs = cv2.aruco.estimatePoseSingleMarkers(corners, self.marker_length, self.camera_matrix, self.distortion_params) # use this instead if you got a value error
             # marker positions in format [x,y,z] with z pointing forward, y pointing down, x pointing right. 
         #print(tvecs)
+
+        robot_state= self.get_state_vector()
 
         if ids is None:
             return [], img
@@ -43,7 +51,13 @@ class aruco_detector:
             lm_bff2d = np.block([[lm_tvecs[2,:]],[-lm_tvecs[0,:]]])
             lm_bff2d = np.mean(lm_bff2d, axis=1).reshape(-1,1)
 
-            lm_measurement = measure.Marker(lm_bff2d, idi)
+            #set covariance to zero of first landmarks
+            if robot_state[0][0]< 0.001 and  robot_state[0][1]< 0.001 and  robot_state[0][2]< 0.001:
+                #inital position
+                lm_measurement = measure.Marker(lm_bff2d, idi, covariance=0)
+            else:                 
+                lm_measurement = measure.Marker(lm_bff2d, idi)
+
             measurements.append(lm_measurement)
         
         # Draw markers on image copy
