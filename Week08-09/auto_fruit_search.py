@@ -367,11 +367,28 @@ def update_command(drive_forward=False, drive_backward=False, turn_left=False, t
 
 def find_path(startpos, endpos, obstacles_current, n_iter, radius, stepSize, bounds, goal_radius):
     rrt_star_graph = rrt.RRT_star(startpos, endpos, obstacles_current, n_iter, radius, stepSize, bounds, goal_radius)
+    radius_original = radius
     #if cannot find a path, make obstacle radius iteratively smaller and try again 
     while rrt_star_graph.success == False: 
         radius = radius - 0.05
         if radius < 0: 
-            sys.exit("ERROR: Could not find a path from here")
+            print("Failed finding a path. Trying again...")
+            #drive backwards for 1 second at half speed
+            time_drive_backwards = 1
+            time_start = time.time() 
+            time_current = time_start
+            while abs(time_current - time_start)<time_drive_backwards:
+                drive_loop(operate, tick=25, drive_backward=True)
+                time_current = time.time()
+            #after driving backwards, 
+            #stop the robots motion
+            drive_loop(operate,stop=True)
+            #find a new shortest path 
+            print("Finding a new shortest path...") 
+            robot_pose = get_robot_pose()
+            startpos = (robot_pose[0], robot_pose[1])
+            print(f'robot pose after driving backwards {robot_pose}')
+            radius = radius_original 
         rrt_star_graph = rrt.RRT_star(startpos, endpos, obstacles_current, n_iter, radius, stepSize, bounds, goal_radius)
     #do not include last element in shortest path as that is the endpos (not offset)
     shortest_path = (rrt.dijkstra(rrt_star_graph))[:-1]
@@ -751,8 +768,8 @@ if __name__ == "__main__":
                                     else: 
                                         print(f"Drive to {shop_item} failed")
                                         print(f"current robot pos: {get_robot_pose()}")
-                                        replan = True #trigger new pathplanning 
-                                        break 
+                                        #replan = True #trigger new pathplanning 
+                                        #break 
 
                 #if the robot has been told to replan its route, stop and replan. 
                 if replan == True: 

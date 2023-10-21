@@ -117,7 +117,8 @@ class aruco_detector:
         for i in range(len(ids)):
             idi = ids[i,0]
             # Some markers appear multiple times but should only be handled once.
-            if idi in seen_ids:
+            # make sure ID is only 1-10 
+            if idi in seen_ids or idi not in {1, 2, 3, 4, 5, 6, 7, 8, 9, 10} :
                 continue
             else:
                 seen_ids.append(idi)
