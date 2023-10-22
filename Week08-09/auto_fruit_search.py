@@ -630,14 +630,14 @@ if __name__ == "__main__":
     stepSize= 0.7 #need large stepsize
     bounds = (-1.35, 1.35, -1.35, 1.35)
     goal_radius = 0.3 #marginally less than 0.5m so that robot is fully within the goal.
-    # target_dimensions_dict = {'orange': [1.0,1.0,0.073], 'lemon': [1.0,1.0,0.041], 
-    #                           'lime': [1.0,1.0,0.052], 'tomato': [1.0,1.0,0.07], 
-    #                           'capsicum': [1.0,1.0,0.097], 'potato': [1.0,1.0,0.062], 
-    #                           'pumpkin': [1.0,1.0,0.08], 'garlic': [1.0,1.0,0.075]} 
-    target_dimensions_dict = {'orange': [0.05,0.05,0.05], 'apple': [1.0,1.0,0.05], 
-                              'kiwi': [1.0,1.0,0.047], 'banana': [1.0,1.0,0.047], 
-                              'pear': [1.0,1.0,0.075], 'melon': [1.0,1.0,0.055], 
-                              'potato': [1.0,1.0,0.04]}
+    target_dimensions_dict = {'orange': [1.0,1.0,0.073], 'lemon': [1.0,1.0,0.041], 
+                              'lime': [1.0,1.0,0.052], 'tomato': [1.0,1.0,0.07], 
+                              'capsicum': [1.0,1.0,0.097], 'potato': [1.0,1.0,0.062], 
+                              'pumpkin': [1.0,1.0,0.08], 'garlic': [1.0,1.0,0.075]} 
+    # target_dimensions_dict = {'orange': [0.05,0.05,0.05], 'apple': [1.0,1.0,0.05], 
+    #                           'kiwi': [1.0,1.0,0.047], 'banana': [1.0,1.0,0.047], 
+    #                           'pear': [1.0,1.0,0.075], 'melon': [1.0,1.0,0.055], 
+    #                           'potato': [1.0,1.0,0.04]}
     fruit_distance_threshold_meters = 0.12
     aruco_distance_threshold_pixels = 90 #previously 80
     fruit_driveto_distance_threshold = 0.6 # doesn't interrupt and drive to fruit unless within 0.6m of fruit already 
@@ -817,6 +817,10 @@ if __name__ == "__main__":
                         print(f"current robot pos: {get_robot_pose()}")
                         print("--------------------------------------\n")
                         #relocalise the robot after arriving at a shop item   
+                        ref_time = time.time()
+                        curr_time = time.time()
+                        while curr_time - ref_time < 3:
+                            curr_time = time.time()
                         relocalise(operate)
                         break 
                     #if at least 5 waypoints have been visited, and robot is within 1.5m radius of center -> relocalise 

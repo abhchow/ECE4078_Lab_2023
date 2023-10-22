@@ -1,5 +1,5 @@
-kiwi 
-melon
-apple 
-pear
-orange
+potato
+lime
+garlic 
+lemon 
+tomato
