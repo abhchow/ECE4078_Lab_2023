@@ -32,6 +32,9 @@ def parse_object_map(fname):
 
 if __name__ == "__main__":
     
+    # import importlib  
+    # importlib.import_module("Week06-07.TargetPoseEst")
+
     parser = argparse.ArgumentParser('Matching the estimated map and the true map')
     parser.add_argument('--true-map', type=str, default='true_map.txt')
     parser.add_argument('--slam-est', type=str, default='Week06-07/lab_output/slam.txt')
