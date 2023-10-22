@@ -3,11 +3,11 @@
 # ===============================================
 # Main params to modify
 # ===============================================
-input_image: g16.jpg
-output_map_name: g16_full.txt
+input_image: sun.jpg
+output_map_name: sun_truth.txt
 
 # a reference map to specify the objects (how many for each type) on the map
-reference_map: g16ref.txt
+reference_map: sunref.txt
 
 # fruits - list of fruits to be placed in the arena and their colours
 fruits:
@@ -16,7 +16,7 @@ fruits:
   apple: [0, 0, 191]
   kiwi: [0, 63, 127]
   melon: [255, 192, 203]
-  fruit1: [0,0,0]
+  melon: [255, 192, 203]
   fruit2: [0,0,0]
   fruit3: [0,0,0]
   fruit4: [0,0,0]

@@ -129,7 +129,7 @@ class aruco_detector:
 
             #print(robot_state[0])
             #set covariance to zero of first landmarks
-            if robot_state[0] == 0:
+            if abs(robot_state[0]) <= 0.01 and abs(robot_state[1]) <= 0.01:
                 #inital position
                 lm_measurement = measure.Marker(lm_bff2d, idi, covariance=0)
             else:                 

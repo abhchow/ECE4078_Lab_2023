@@ -127,7 +127,6 @@ class Operate:
         # for idx, marker in enumerate(lms): 
         #     dist_to_lm = np.linalg.norm(np.array([marker.position[0], marker.position[1]]))
         #     #print(f"{idx}: {dist_to_lm}\n")
-        #     print(dist_to_lm)
         #     if dist_to_lm > 8:
         #         #remove current index 
         #         lms_filtered.pop(idx)

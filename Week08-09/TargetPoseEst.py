@@ -5,6 +5,7 @@ import os
 import ast
 import cv2
 from YOLO.detector import Detector
+from sklearn.cluster import KMeans
 
 
 # list of target fruits and vegs types
@@ -35,10 +36,14 @@ def estimate_pose(camera_matrix, obj_info, robot_pose):
     # there are 8 possible types of fruits and vegs
     ######### Replace with your codes #########
     # TODO: measure actual sizes of targets [width, depth, height] and update the dictionary of true target dimensions
-    target_dimensions_dict = {'orange': [1.0,1.0,1.0], 'lemon': [1.0,1.0,1.0], 
-                              'lime': [1.0,1.0,1.0], 'tomato': [1.0,1.0,1.0], 
-                              'capsicum': [1.0,1.0,1.0], 'potato': [1.0,1.0,1.0], 
-                              'pumpkin': [1.0,1.0,1.0], 'garlic': [1.0,1.0,1.0]}
+    target_dimensions_dict = {'orange': [1.0,1.0,0.073], 'lemon': [1.0,1.0,0.041],  
+                              'lime': [1.0,1.0,0.052], 'tomato': [1.0,1.0,0.07],  
+                              'capsicum': [1.0,1.0,0.097], 'potato': [1.0,1.0,0.062],  
+                              'pumpkin': [1.0,1.0,0.08], 'garlic': [1.0,1.0,0.075]}  
+    # target_dimensions_dict = {'orange': [0.05,0.05,0.05], 'apple': [1.0,1.0,0.05], 
+    #                           'kiwi': [1.0,1.0,0.047], 'banana': [1.0,1.0,0.047], 
+    #                           'pear': [1.0,1.0,0.075], 'melon': [1.0,1.0,0.055], 
+    #                           'potato': [1.0,1.0,0.04]}
     #########
 
     # estimate target pose using bounding box and robot pose
@@ -88,7 +93,48 @@ def merge_estimations(target_pose_dict):
 
     ######### Replace with your codes #########
     # TODO: replace it with a solution to merge the multiple occurrences of the same class type (e.g., by a distance threshold)
-    target_est = target_pose_dict
+
+    #target_pose_dict is just #will have {"orange_0": {"y": num,"x": num}, "orange_1":...}
+    #replace prev func w k-mean
+    data_array=[]
+    data_headings=[]
+
+    for index, (key, value) in enumerate(target_pose_dict.items()):
+        head, sep, tail = key.partition('_')
+        key=head
+        data_array.append([value['x'],value['y']])
+        data_headings.append(head)
+
+    data_array=np.array(data_array)
+    kmeans=KMeans(n_clusters=10,random_state=0,n_init="auto").fit(data_array)
+    # print(kmeans.labels_)
+    # print(kmeans.cluster_centers_)
+    # plt.figure()
+    # plt.scatter(data_array[:,0],data_array[:,1])
+    # plt.scatter(kmeans.cluster_centers_[:,0],kmeans.cluster_centers_[:,1])
+
+    current_target=[]
+    #need to equate cluster index 0 with its position
+    for i in range(len(data_headings)):
+        temp_heading=data_headings[i]
+        cluster_num=kmeans.labels_[i]
+        cluster_centre=kmeans.cluster_centers_[cluster_num]
+        #target est update will update repeated clusters, need to add new for repeated fruits
+        if temp_heading in current_target:#true, string overlap
+            #check if not same cluster
+            if (cluster_centre[0] != target_est[temp_heading+'_'+str(0)]['x']) and (cluster_centre[1] !=target_est[temp_heading+'_'+str(0)]['y']):
+                print(cluster_centre)
+                #assumes max 2 of each fruit
+                target_est.update({temp_heading+'_'+str(1):{'y':cluster_centre[1],'x':cluster_centre[0]}})
+            else:
+                pass#same cluster 
+        else:
+            target_est.update({temp_heading+'_'+str(0):{'y':cluster_centre[1],'x':cluster_centre[0]}})
+        #update current_target list at end
+        current_target=[]
+        for index, (key, value) in enumerate(target_est.items()): #loop target_est to check if exist
+            head, sep, tail = key.partition('_')
+            current_target.append(head)
     #########
    
     return target_est
@@ -118,7 +164,7 @@ if __name__ == "__main__":
     detected_type_list = []
     for image_path in image_poses.keys():
         input_image = cv2.imread(image_path)
-        bounding_boxes, bbox_img = yolo.detect_single_image(input_image)
+        bounding_boxes, bbox_img, _ = yolo.detect_single_image(input_image)
         # cv2.imshow('bbox', bbox_img)
         # cv2.waitKey(0)
         robot_pose = image_poses[image_path]

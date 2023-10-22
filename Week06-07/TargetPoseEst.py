@@ -11,7 +11,7 @@ from sklearn.cluster import KMeans
 # list of target fruits and vegs types
 # Make sure the names are the same as the ones used in your YOLO model
 TARGET_TYPES = ['orange', 'lemon', 'lime', 'tomato', 'capsicum', 'potato', 'pumpkin', 'garlic']
-# TARGET_TYPES = ['orange', 'apple', 'kiwi', 'banana', 'pear', 'melon', 'potato']
+#TARGET_TYPES = ['orange', 'apple', 'kiwi', 'banana', 'pear', 'melon', 'potato']
 
 def estimate_pose(camera_matrix, obj_info, robot_pose):
     """
@@ -44,6 +44,7 @@ def estimate_pose(camera_matrix, obj_info, robot_pose):
     #                           'kiwi': [1.0,1.0,0.047], 'banana': [1.0,1.0,0.047], 
     #                           'pear': [1.0,1.0,0.075], 'melon': [1.0,1.0,0.055], 
     #                           'potato': [1.0,1.0,0.04]}
+    
     #########
 
     # estimate target pose using bounding box and robot pose
@@ -168,7 +169,7 @@ if __name__ == "__main__":
     detected_type_list = []
     for image_path in image_poses.keys():
         input_image = cv2.imread(image_path)
-        bounding_boxes, bbox_img = yolo.detect_single_image(input_image)
+        bounding_boxes, bbox_img, _ = yolo.detect_single_image(input_image)
         # cv2.imshow('bbox', bbox_img)
         # cv2.waitKey(0)
         robot_pose = image_poses[image_path]

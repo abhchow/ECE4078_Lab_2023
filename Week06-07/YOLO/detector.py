@@ -10,26 +10,26 @@ class Detector:
     def __init__(self, model_path):
         self.model = YOLO(model_path)
 
-        # self.class_colour = {
-        #     'orange': (0, 165, 255),
-        #     'lemon': (0, 255, 255),
-        #     'lime': (0, 255, 0),
-        #     'tomato': (0, 0, 255),
-        #     'capsicum': (255, 0, 0),
-        #     'potato': (255, 255, 0),
-        #     'pumpkin': (255, 165, 0),
-        #     'garlic': (255, 0, 255)
-        # }
-
         self.class_colour = {
             'orange': (0, 165, 255),
-            'banana': (0, 255, 255),
-            'pear': (0, 255, 0),
-            'apple': (0, 0, 255),
-            'kiwi': (255, 0, 0),
+            'lemon': (0, 255, 255),
+            'lime': (0, 255, 0),
+            'tomato': (0, 0, 255),
+            'capsicum': (255, 0, 0),
             'potato': (255, 255, 0),
-            'melon': (255, 165, 0),
+            'pumpkin': (255, 165, 0),
+            'garlic': (255, 0, 255)
         }
+
+        # self.class_colour = {
+        #     'orange': (0, 165, 255),
+        #     'banana': (0, 255, 255),
+        #     'pear': (0, 255, 0),
+        #     'apple': (0, 0, 255),
+        #     'kiwi': (255, 0, 0),
+        #     'potato': (255, 255, 0),
+        #     'melon': (255, 165, 0),
+        # }
 
     def detect_single_image(self, img):
         """
