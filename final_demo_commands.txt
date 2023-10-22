@@ -1,0 +1,24 @@
+OPTION 1:
+
+conda activate PenguinPi
+cd .\Week06-07\
+python operate.py
+
+python TargetPoseEst.py
+cd ..
+python merge_map.py
+
+cd .\Week08-09\
+python auto_fruit_search.py --map=m3_map.txt
+
+
+
+OPTION 2:
+
+conda activate PenguinPi
+python Week06-07\operate.py
+
+python Week06-07\TargetPoseEst.py
+python merge_map.py
+
+python Week08-09\auto_fruit_search.py --map=m3_map.txt
